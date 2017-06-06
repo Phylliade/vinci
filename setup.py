@@ -3,9 +3,9 @@ from setuptools import find_packages
 
 
 setup(name='keras-rl',
-      version='0.3.0',
+      version='0.3.1~dev',
       description='Deep Reinforcement Learning for Keras',
-      author='Matthias Plappert',
+      author='Matthias Plappert, Pierre Manceron',
       author_email='matthiasplappert@me.com',
       url='https://github.com/matthiasplappert/keras-rl',
       download_url='https://github.com/matthiasplappert/keras-rl/archive/v0.3.0.tar.gz',

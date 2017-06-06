@@ -7,6 +7,8 @@ from keras.callbacks import History
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 
+DEBUG = True
+
 
 STEPS_TERMINATION = 1
 EPISODES_TERMINATION = 2
@@ -108,14 +110,20 @@ class Agent(object):
 
         self.training = training
 
+        if DEBUG:
+            print("Training mode:".format(self.training))
+
         # Initilize callbacks
         callbacks = [] if not callbacks else callbacks[:]
 
         if self.training:
             if verbose == 1:
                 callbacks += [TrainIntervalLogger(interval=log_interval)]
-        elif verbose > 1:
-            callbacks += [TrainEpisodeLogger()]
+            elif verbose > 1:
+                callbacks += [TrainEpisodeLogger()]
+        else:
+            callbacks += [TestLogger()]
+
         if visualize:
             callbacks += [Visualizer()]
         history = History()
