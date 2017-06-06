@@ -8,6 +8,10 @@ from keras.callbacks import History
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 
 
+STEPS_TERMINATION = 1
+EPISODES_TERMINATION = 2
+
+
 class Agent(object):
     """Abstract base class for all implemented agents.
 
@@ -93,7 +97,13 @@ class Agent(object):
             raise ValueError('action_repetition must be >= 1, is {}'.format(
                 action_repetition))
 
-        if (nb_steps is None and nb_episodes is None) and (nb_steps is not None and nb_episodes is not None):
+        if (nb_steps is None and nb_episodes is None):
+            raise(ValueError("Please specify one (and only one) of nb_steps and nb_episodes"))
+        elif(nb_steps is not None and nb_episodes is None):
+            termination_criterion = STEPS_TERMINATION
+        elif(nb_steps is None and nb_episodes is not None):
+            termination_criterion = EPISODES_TERMINATION
+        elif (nb_steps is not None and nb_episodes is not None):
             raise(ValueError("Please specify one (and only one) of nb_steps and nb_episodes"))
 
         self.training = training
@@ -119,11 +129,11 @@ class Agent(object):
             callbacks._set_model(self)
 
         callbacks._set_env(env)
-        if self.training:
+        if termination_criterion == STEPS_TERMINATION:
             params = {
                 'nb_steps': nb_steps,
             }
-        else:
+        elif termination_criterion == EPISODES_TERMINATION:
             params = {
                 'nb_episodes': nb_episodes,
             }
@@ -146,11 +156,10 @@ class Agent(object):
         episode_step = None
         did_abort = False
 
-        if self.training:
+        if termination_criterion == STEPS_TERMINATION:
             def termination():
                 return (self.step >= nb_steps)
-        else:
-
+        elif termination_criterion == EPISODES_TERMINATION:
             def termination():
                 return (episode >= nb_episodes)
 
