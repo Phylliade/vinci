@@ -122,7 +122,8 @@ class Agent(object):
             elif verbose > 1:
                 callbacks += [TrainEpisodeLogger()]
         else:
-            callbacks += [TestLogger()]
+            if verbose >= 1:
+                callbacks += [TestLogger()]
 
         if visualize:
             callbacks += [Visualizer()]
@@ -249,15 +250,16 @@ class Agent(object):
                 if nb_max_episode_steps and episode_step >= nb_max_episode_steps - 1:
                     # Force a terminal state.
                     done = True
+
                 metrics = self.backward(reward, terminal=done)
                 episode_reward += reward
 
                 step_logs = {
-                    'action': action,
-                    'observation': observation,
-                    'reward': reward,
-                    'metrics': metrics,
-                    'episode': episode,
+                    'action': np.array(action),
+                    'observation': np.array(observation),
+                    'reward': np.array(reward),
+                    'metrics': np.array(metrics),
+                    'episode': np.array(episode),
                     'info': accumulated_info,
                 }
                 callbacks.on_step_end(episode_step, step_logs)
@@ -275,11 +277,11 @@ class Agent(object):
 
                     # This episode is finished, report and reset.
                     episode_logs = {
-                        'episode_reward': episode_reward,
-                        'nb_episode_steps': episode_step,
-                        'nb_steps': self.step,
+                        'episode_reward': np.array(episode_reward),
+                        'nb_episode_steps': np.array(episode_step),
+                        'nb_steps': np.array(self.step),
                     }
-                    callbacks.on_episode_end(episode, episode_logs)
+                    callbacks.on_episode_end(episode, logs=episode_logs)
 
                     episode += 1
                     observation = None
