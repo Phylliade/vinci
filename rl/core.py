@@ -255,11 +255,11 @@ class Agent(object):
                 episode_reward += reward
 
                 step_logs = {
-                    'action': np.array(action),
-                    'observation': np.array(observation),
-                    'reward': np.array(reward),
-                    'metrics': np.array(metrics),
-                    'episode': np.array(episode),
+                    'action': action,
+                    'observation': observation,
+                    'reward': reward,
+                    'metrics': metrics,
+                    'episode': episode,
                     'info': accumulated_info,
                 }
                 callbacks.on_step_end(episode_step, step_logs)
@@ -277,9 +277,9 @@ class Agent(object):
 
                     # This episode is finished, report and reset.
                     episode_logs = {
-                        'episode_reward': np.array(episode_reward),
-                        'nb_episode_steps': np.array(episode_step),
-                        'nb_steps': np.array(self.step),
+                        'episode_reward': np.float_(episode_reward),
+                        'nb_episode_steps': np.float_(episode_step),
+                        'nb_steps': np.float_(self.step),
                     }
                     callbacks.on_episode_end(episode, logs=episode_logs)
 
