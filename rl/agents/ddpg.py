@@ -20,7 +20,7 @@ def mean_q(y_true, y_pred):
 class DDPGAgent(Agent):
     """Write me
     """
-    def __init__(self, nb_actions, actor, critic, critic_action_input, memory,
+    def __init__(self, nb_actions, actions_low, actions_high, actor, critic, critic_action_input, memory,
                  gamma=.99, batch_size=32, nb_steps_warmup_critic=1000, nb_steps_warmup_actor=1000,
                  train_interval=1, memory_interval=1, delta_range=None, delta_clip=np.inf,
                  random_process=None, custom_model_objects={}, target_model_update=.001, **kwargs):
@@ -51,6 +51,8 @@ class DDPGAgent(Agent):
 
         # Parameters.
         self.nb_actions = nb_actions
+        self.actions_low = actions_low
+        self.actions_high = actions_high
         self.nb_steps_warmup_actor = nb_steps_warmup_actor
         self.nb_steps_warmup_critic = nb_steps_warmup_critic
         self.random_process = random_process
@@ -222,6 +224,8 @@ class DDPGAgent(Agent):
             assert noise.shape == action.shape
             action += noise
 
+        # Clip the action value, even if the noise is making it exceed its bounds
+        action = np.clip(action, self.actions_low, self.actions_high)
         return action
 
     def forward(self, observation):
