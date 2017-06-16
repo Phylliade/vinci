@@ -112,10 +112,11 @@ class Memory(object):
         }
         return config
 
+
 class SequentialMemory(Memory):
     def __init__(self, limit, **kwargs):
         super(SequentialMemory, self).__init__(**kwargs)
-        
+
         self.limit = limit
 
         # Do not use deque to implement the memory. This data structure may seem convenient but
@@ -180,7 +181,7 @@ class SequentialMemory(Memory):
 
     def append(self, observation, action, reward, terminal, training=True):
         super(SequentialMemory, self).append(observation, action, reward, terminal, training=training)
-        
+
         # This needs to be understood as follows: in `observation`, take `action`, obtain `reward`
         # and weather the next state is `terminal` or not.
         if training:

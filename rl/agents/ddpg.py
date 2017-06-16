@@ -112,7 +112,7 @@ class DDPGAgent(Agent):
 
         # We also compile the actor. We never optimize the actor using Keras but instead compute
         # the policy gradient ourselves. However, we need the actor in feed-forward mode, hence
-        # we also compile it with any optimzer and
+        # we also compile it with any optimizer and
         self.actor.compile(optimizer='sgd', loss='mse')
 
         # Compile the critic.
