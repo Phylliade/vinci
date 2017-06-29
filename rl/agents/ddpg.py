@@ -83,6 +83,11 @@ class DDPGAgent(Agent):
     def uses_learning_phase(self):
         return self.actor.uses_learning_phase or self.critic.uses_learning_phase
 
+    def load_memory(self, memory):
+        """Loads the given memory as the replay buffer"""
+        del(self.memory)
+        self.memory = memory
+
     def compile(self, optimizer, metrics=[]):
         metrics += [mean_q]
 

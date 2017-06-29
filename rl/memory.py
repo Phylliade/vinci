@@ -126,6 +126,11 @@ class SequentialMemory(Memory):
         self.terminals = RingBuffer(limit)
         self.observations = RingBuffer(limit)
 
+    @classmethod
+    def from_file(self, file_path):
+        """Create a memory from a pickle file"""
+        pass
+
     def sample(self, batch_size, batch_idxs=None):
         if batch_idxs is None:
             # Draw random indexes such that we have at least a single entry before each
