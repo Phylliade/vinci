@@ -274,15 +274,20 @@ class DDPGAgent(Agent):
         can_train_either = self.step > self.nb_steps_warmup_critic or self.step > self.nb_steps_warmup_actor
 
         if can_train_either and self.step % self.train_interval == 0:
-            batches = self.process_batches()
+            metrics = self.fit_nets(fit_critic=fit_critic, fit_actor=fit_actor)
 
-            # Update critic, if warm up is over.
-            if fit_critic and self.step > self.nb_steps_warmup_critic:
-                metrics = self.fit_critic(batches)
+        return metrics
 
-            # Update actor, if warm up is over.
-            if fit_actor and self.step > self.nb_steps_warmup_actor:
-                self.fit_actor(batches)
+    def fit_nets(self, fit_critic=True, fit_actor=True):
+        batches = self.process_batches()
+
+        # Update critic, if warm up is over.
+        if fit_critic and self.step > self.nb_steps_warmup_critic:
+            metrics = self.fit_critic(batches)
+
+        # Update actor, if warm up is over.
+        if fit_actor and self.step > self.nb_steps_warmup_actor:
+            self.fit_actor(batches)
 
         # Update target networks
         if self.target_model_update >= 1 and self.step % self.target_model_update == 0:
