@@ -5,9 +5,13 @@ import warnings
 import numpy as np
 import keras.backend as K
 import keras.optimizers as optimizers
+from collections import namedtuple
 
 from rl.core import Agent
 from rl.util import huber_loss, clone_model, get_soft_target_model_updates, clone_optimizer, AdditionalUpdatesOptimizer
+
+
+Batches = namedtuple("Batches", ("state_0", "action", "reward", "state_1", "terminal_1"))
 
 
 def mean_q(y_true, y_pred):
@@ -170,6 +174,8 @@ class DDPGAgent(Agent):
         inputs = self.actor.inputs[:] + critic_inputs
         if self.uses_learning_phase:
             inputs += [K.learning_phase()]
+
+        # Function to train the actor
         self.actor_train_fn = K.function(inputs, [self.actor.output], updates=updates)
         self.actor_optimizer = actor_optimizer
 
@@ -252,89 +258,108 @@ class DDPGAgent(Agent):
             names += self.processor.metrics_names[:]
         return names
 
-    def backward(self, reward, terminal=False):
+    def backward(self, reward, terminal=False, fit_actor=True, fit_critic=True):
         # Store most recent experience in memory.
         if self.step % self.memory_interval == 0:
             self.memory.append(self.recent_observation, self.recent_action, reward, terminal,
                                training=self.training)
 
         metrics = [np.nan for _ in self.metrics_names]
+
+        # Stop here if not training
         if not self.training:
-            # We're done here. No need to update the experience memory since we only use the working
-            # memory to obtain the state over the most recent observations.
             return metrics
 
         # Train the network on a single stochastic batch.
         can_train_either = self.step > self.nb_steps_warmup_critic or self.step > self.nb_steps_warmup_actor
+
         if can_train_either and self.step % self.train_interval == 0:
-            experiences = self.memory.sample(self.batch_size)
-            assert len(experiences) == self.batch_size
-
-            # Start by extracting the necessary parameters (we use a vectorized implementation).
-            state0_batch = []
-            reward_batch = []
-            action_batch = []
-            terminal1_batch = []
-            state1_batch = []
-            for e in experiences:
-                state0_batch.append(e.state0)
-                state1_batch.append(e.state1)
-                reward_batch.append(e.reward)
-                action_batch.append(e.action)
-                terminal1_batch.append(0. if e.terminal1 else 1.)
-
-            # Prepare and validate parameters.
-            state0_batch = self.process_state_batch(state0_batch)
-            state1_batch = self.process_state_batch(state1_batch)
-            terminal1_batch = np.array(terminal1_batch)
-            reward_batch = np.array(reward_batch)
-            action_batch = np.array(action_batch)
-            assert reward_batch.shape == (self.batch_size,)
-            assert terminal1_batch.shape == reward_batch.shape
-            assert action_batch.shape == (self.batch_size, self.nb_actions)
+            batches = self.process_batches()
 
             # Update critic, if warm up is over.
-            if self.step > self.nb_steps_warmup_critic:
-                target_actions = self.target_actor.predict_on_batch(state1_batch)
-                assert target_actions.shape == (self.batch_size, self.nb_actions)
-                if len(self.critic.inputs) >= 3:
-                    state1_batch_with_action = state1_batch[:]
-                else:
-                    state1_batch_with_action = [state1_batch]
-                state1_batch_with_action.insert(self.critic_action_input_idx, target_actions)
-                target_q_values = self.target_critic.predict_on_batch(state1_batch_with_action).flatten()
-                assert target_q_values.shape == (self.batch_size,)
-
-                # Compute r_t + gamma * max_a Q(s_t+1, a) and update the target ys accordingly,
-                # but only for the affected output units (as given by action_batch).
-                discounted_reward_batch = self.gamma * target_q_values
-                discounted_reward_batch *= terminal1_batch
-                assert discounted_reward_batch.shape == reward_batch.shape
-                targets = (reward_batch + discounted_reward_batch).reshape(self.batch_size, 1)
-
-                # Perform a single batch update on the critic network.
-                if len(self.critic.inputs) >= 3:
-                    state0_batch_with_action = state0_batch[:]
-                else:
-                    state0_batch_with_action = [state0_batch]
-                state0_batch_with_action.insert(self.critic_action_input_idx, action_batch)
-                metrics = self.critic.train_on_batch(state0_batch_with_action, targets)
-                if self.processor is not None:
-                    metrics += self.processor.metrics
+            if fit_critic and self.step > self.nb_steps_warmup_critic:
+                metrics = self.fit_critic(batches)
 
             # Update actor, if warm up is over.
-            if self.step > self.nb_steps_warmup_actor:
-                # TODO: implement metrics for actor
-                if len(self.actor.inputs) >= 2:
-                    inputs = state0_batch[:] + state0_batch[:]
-                else:
-                    inputs = [state0_batch, + state0_batch]
-                if self.uses_learning_phase:
-                    inputs += [self.training]
-                action_values = self.actor_train_fn(inputs)[0]
-                assert action_values.shape == (self.batch_size, self.nb_actions)
+            if fit_actor and self.step > self.nb_steps_warmup_actor:
+                self.fit_actor(batches)
 
+        # Update target networks
         if self.target_model_update >= 1 and self.step % self.target_model_update == 0:
             self.update_target_models_hard()
 
         return metrics
+
+    def fit_critic(self, batches):
+        target_actions = self.target_actor.predict_on_batch(batches.state_1)
+        assert target_actions.shape == (self.batch_size, self.nb_actions)
+        if len(self.critic.inputs) >= 3:
+            state1_batch_with_action = batches
+        else:
+            state1_batch_with_action = [batches.state_1]
+        state1_batch_with_action.insert(self.critic_action_input_idx, target_actions)
+        target_q_values = self.target_critic.predict_on_batch(state1_batch_with_action).flatten()
+        assert target_q_values.shape == (self.batch_size,)
+
+        # Compute r_t + gamma * max_a Q(s_t+1, a) and update the target ys accordingly,
+        # but only for the affected output units (as given by action_batch).
+        discounted_reward_batch = self.gamma * target_q_values
+        discounted_reward_batch *= batches.terminal_1
+        assert discounted_reward_batch.shape == batches.reward.shape
+        targets = (batches.reward + discounted_reward_batch).reshape(self.batch_size, 1)
+
+        # Perform a single batch update on the critic network.
+        if len(self.critic.inputs) >= 3:
+            state0_batch_with_action = batches.state_0[:]
+        else:
+            state0_batch_with_action = [batches.state_0]
+        state0_batch_with_action.insert(self.critic_action_input_idx, batches.action)
+        metrics = self.critic.train_on_batch(state0_batch_with_action, targets)
+        if self.processor is not None:
+            metrics += self.processor.metrics
+
+        return(metrics)
+
+    def fit_actor(self, batches):
+        # Update actor, if warm up is over.
+        if self.step > self.nb_steps_warmup_actor:
+            # TODO: implement metrics for actor
+            if len(self.actor.inputs) >= 2:
+                inputs = batches.state_0[:] + batches.state_0[:]
+
+            else:
+                inputs = [batches.state_0, + batches.state_0]
+            if self.uses_learning_phase:
+                inputs += [self.training]
+            action_values = self.actor_train_fn(inputs)[0]
+            assert action_values.shape == (self.batch_size, self.nb_actions)
+
+    def process_batches(self):
+        experiences = self.memory.sample(self.batch_size)
+        assert len(experiences) == self.batch_size
+
+        # Start by extracting the necessary parameters (we use a vectorized implementation).
+        state0_batch = []
+        reward_batch = []
+        action_batch = []
+        terminal1_batch = []
+        state1_batch = []
+        for e in experiences:
+            state0_batch.append(e.state0)
+            state1_batch.append(e.state1)
+            reward_batch.append(e.reward)
+            action_batch.append(e.action)
+            terminal1_batch.append(0. if e.terminal1 else 1.)
+
+        # Prepare and validate parameters.
+        state0_batch = self.process_state_batch(state0_batch)
+        state1_batch = self.process_state_batch(state1_batch)
+        terminal1_batch = np.array(terminal1_batch)
+        reward_batch = np.array(reward_batch)
+        action_batch = np.array(action_batch)
+        assert reward_batch.shape == (self.batch_size,)
+        assert terminal1_batch.shape == reward_batch.shape
+        assert action_batch.shape == (self.batch_size, self.nb_actions)
+
+        batches = Batches(state_0=state0_batch, action=action_batch, reward=reward_batch, terminal_1=terminal1_batch, state_1=state1_batch)
+        return(batches)
