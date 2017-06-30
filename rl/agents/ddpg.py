@@ -354,6 +354,7 @@ class DDPGAgent(Agent):
         return metrics
 
     def fit_critic(self, batches):
+        print(batches.state_1)
         target_actions = self.target_actor.predict_on_batch(batches.state_1)
         assert target_actions.shape == (self.batch_size, self.nb_actions)
         if len(self.critic.inputs) >= 3:
@@ -402,7 +403,14 @@ class DDPGAgent(Agent):
             assert action_values.shape == (self.batch_size, self.nb_actions)
 
     def process_batches(self):
+        """
+        Process the batches
+        Split each a batch of experiences into batches of state_0, action etc...
+        """
+        # TODO: Remove this function
+        # Store directly the different batches into memory
         experiences = self.memory.sample(self.batch_size)
+        print(experiences)
         assert len(experiences) == self.batch_size
 
         # Start by extracting the necessary parameters (we use a vectorized implementation).
@@ -419,6 +427,7 @@ class DDPGAgent(Agent):
             terminal1_batch.append(0. if e.terminal1 else 1.)
 
         # Prepare and validate parameters.
+        # TODO: Remove this, we do not need processors for now
         state0_batch = self.process_state_batch(state0_batch)
         state1_batch = self.process_state_batch(state1_batch)
         terminal1_batch = np.array(terminal1_batch)
