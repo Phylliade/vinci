@@ -6,8 +6,8 @@ It began as a fork of [keras-rl](https://github.com/matthiasplappert/keras-rl) b
 # Features
 
 * Define your Deep Nets using Keras
-* Easy to add a new algorithm using a well-defined API
-* Advanced training capabilities: Offline traning, critic-only (or actor-only) training...
+* Easy to implement a new algorithm, using a well-defined API
+* Advanced training capabilities: Offline training, critic-only (or actor-only) training...
 * Easy logging : Tensorboard, Terminal...
 
 # Installation
