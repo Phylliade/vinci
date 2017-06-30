@@ -354,7 +354,6 @@ class DDPGAgent(Agent):
         return metrics
 
     def fit_critic(self, batches):
-        print(batches.state_1)
         target_actions = self.target_actor.predict_on_batch(batches.state_1)
         assert target_actions.shape == (self.batch_size, self.nb_actions)
         if len(self.critic.inputs) >= 3:
@@ -410,7 +409,6 @@ class DDPGAgent(Agent):
         # TODO: Remove this function
         # Store directly the different batches into memory
         experiences = self.memory.sample(self.batch_size)
-        print(experiences)
         assert len(experiences) == self.batch_size
 
         # Start by extracting the necessary parameters (we use a vectorized implementation).
@@ -420,8 +418,10 @@ class DDPGAgent(Agent):
         terminal1_batch = []
         state1_batch = []
         for e in experiences:
-            state0_batch.append(e.state0)
-            state1_batch.append(e.state1)
+            # FIXME: The keras functions (predict_in_batch) expect to have a list of batches for the states
+            # state0_batch = [[e1.state0], [e2.state_0], ...]
+            state0_batch.append([e.state0])
+            state1_batch.append([e.state1])
             reward_batch.append(e.reward)
             action_batch.append(e.action)
             terminal1_batch.append(0. if e.terminal1 else 1.)
