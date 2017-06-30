@@ -39,7 +39,9 @@ class Agent(object):
     """
 
     def __init__(self, processor=None):
-        self.processor = processor
+        # Use a default identity processor if not provided
+        if processor is None:
+            self.processor = Processor()
         self.training = False
         self.step = 0
 
@@ -158,9 +160,13 @@ class Agent(object):
 
         callbacks.on_train_begin()
 
+        # Setup
         episode = 0
         self.step = 0
-        observation = None
+        # observations is a tuple storing (observation_0, observation_1)
+        # Where observation_0: Observation before the step
+        # observation_1: Observation after the step
+        observations = None
         episode_reward = None
         episode_step = None
         did_abort = False
@@ -173,70 +179,52 @@ class Agent(object):
                 return (episode >= nb_episodes)
 
         try:
+            # Run steps (and episodes) until the termination criterion is met
             while not (termination()):
-                if observation is None:  # start of a new episode
+                # If we are at the beginning of a new episode, execute a startup sequence
+                if observations is None:
                     callbacks.on_episode_begin(episode)
                     episode_step = 0
                     episode_reward = 0.
 
                     # Obtain the initial observation by resetting the environment.
                     self.reset_states()
-                    observation = deepcopy(env.reset())
-                    if self.processor is not None:
-                        observation = self.processor.process_observation(
-                            observation)
-                    assert observation is not None
+                    observation_0 = deepcopy(env.reset())
+                    observation_0 = self.processor.process_observation(observation_0)
+                    assert observation_0 is not None
 
-                    # Perform random starts at beginning of episode and do not record them into the experience.
+                    # Perform random steps at beginning of episode and do not record them into the experience.
                     # This slightly changes the start position between games.
-                    nb_random_start_steps = 0 if nb_max_start_steps == 0 else np.random.randint(
-                        nb_max_start_steps)
-                    for _ in range(nb_random_start_steps):
-                        if start_step_policy is None:
-                            action = env.action_space.sample()
-                        else:
-                            action = start_step_policy(observation)
-                        if self.processor is not None:
-                            action = self.processor.process_action(action)
-                        callbacks.on_action_begin(action)
-                        observation, reward, done, info = env.step(action)
-                        observation = deepcopy(observation)
-                        if self.processor is not None:
-                            observation, reward, done, info = self.processor.process_step(
-                                observation, reward, done, info)
-                        callbacks.on_action_end(action)
-                        if done:
-                            warnings.warn(
-                                'Env ended before {} random steps could be performed at the start. You should probably lower the `nb_max_start_steps` parameter.'.
-                                format(nb_random_start_steps))
-                            observation = deepcopy(env.reset())
-                            if self.processor is not None:
-                                observation = self.processor.process_observation(
-                                    observation)
-                            break
+                    if nb_max_start_steps != 0:
+                        observation_0 = self._perform_random_steps(nb_max_start_steps, start_step_policy, env, observation_0, callbacks)
 
                 # At this point, we expect to be fully initialized.
                 assert episode_reward is not None
                 assert episode_step is not None
-                assert observation is not None
+                assert observation_0 is not None
 
                 # Run a single step.
                 callbacks.on_step_begin(episode_step)
                 # This is were all of the work happens. We first perceive and compute the action
                 # (forward step) and then use the reward to improve (backward step).
-                action = self.forward(observation)
-                if self.processor is not None:
-                    action = self.processor.process_action(action)
+
+                # state_0 -- (foward) --> action
+                action = self.forward(observation_0)
+
+                # Process the action
+                action = self.processor.process_action(action)
+
+                # action -- (step) --> (reward, state_1, terminal)
                 reward = 0.
                 accumulated_info = {}
                 done = False
+
                 for _ in range(action_repetition):
                     callbacks.on_action_begin(action)
-                    observation, r, done, info = env.step(action)
-                    observation = deepcopy(observation)
-                    if self.processor is not None:
-                        observation, r, done, info = self.processor.process_step(
-                            observation, r, done, info)
+                    observation_1, r, done, info = env.step(action)
+                    observation_1 = deepcopy(observation_1)
+
+                    observation_1, r, done, info = self.processor.process_step(observation_1, r, done, info)
                     for key, value in info.items():
                         if not np.isreal(value):
                             continue
@@ -244,19 +232,27 @@ class Agent(object):
                             accumulated_info[key] = np.zeros_like(value)
                         accumulated_info[key] += value
                     callbacks.on_action_end(action)
+
                     reward += r
+
                     if done:
                         break
+
+                # Stop episode if reached the step limit
                 if nb_max_episode_steps and episode_step >= nb_max_episode_steps - 1:
                     # Force a terminal state.
                     done = True
 
-                metrics = self.backward(reward, terminal=done)
-                episode_reward += reward
+                observations = (observation_0, observation_1)
 
+                # Use the step information to train the algorithm
+                metrics = self.backward(observations, action, reward, terminal=done)
+
+                # Collect statistics
+                episode_reward += reward
                 step_logs = {
                     'action': action,
-                    'observation': observation,
+                    'observation': observation_1,
                     'reward': reward,
                     'metrics': metrics,
                     'episode': episode,
@@ -266,15 +262,8 @@ class Agent(object):
                 episode_step += 1
                 self.step += 1
 
+                # Close the episode and reset the variables
                 if done:
-                    # We are in a terminal state but the agent hasn't yet seen it. We therefore
-                    # perform one more forward-backward call and simply ignore the action before
-                    # resetting the environment. We need to pass in `terminal=False` here since
-                    # the *next* state, that is the state of the newly reset environment, is
-                    # always non-terminal by convention.
-                    self.forward(observation)
-                    self.backward(0., terminal=False)
-
                     # This episode is finished, report and reset.
                     episode_logs = {
                         'episode_reward': np.float_(episode_reward),
@@ -284,18 +273,44 @@ class Agent(object):
                     callbacks.on_episode_end(episode, logs=episode_logs)
 
                     episode += 1
-                    observation = None
+                    observations = None
                     episode_step = None
                     episode_reward = None
+
         except KeyboardInterrupt:
             # We catch keyboard interrupts here so that training can be be safely aborted.
             # This is so common that we've built this right into this function, which ensures that
             # the `on_train_end` method is properly called.
             did_abort = True
+
         callbacks.on_train_end(logs={'did_abort': did_abort})
         self._on_train_end()
 
         return history
+
+    def _perform_random_steps(self, nb_max_start_steps, start_step_policy, env, observation, callbacks):
+        nb_random_start_steps = np.random.randint(nb_max_start_steps)
+        for _ in range(nb_random_start_steps):
+            if start_step_policy is None:
+                action = env.action_space.sample()
+            else:
+                action = start_step_policy(observation)
+            action = self.processor.process_action(action)
+            callbacks.on_action_begin(action)
+            observation, reward, done, info = env.step(action)
+            observation = deepcopy(observation)
+            observation, reward, done, info = self.processor.process_step(
+                    observation, reward, done, info)
+            callbacks.on_action_end(action)
+
+            if done:
+                warnings.warn(
+                    'Env ended before {} random steps could be performed at the start. You should probably lower the `nb_max_start_steps` parameter.'.
+                    format(nb_random_start_steps))
+                observation = deepcopy(env.reset())
+                observation = self.processor.process_observation(observation)
+                break
+        return(observation)
 
     def fit(self,
             env,
@@ -354,8 +369,9 @@ class Agent(object):
         """
         raise NotImplementedError()
 
-    def backward(self, reward, terminal):
-        """Updates the agent after having executed the action returned by `forward`.
+    def backward(self, observations, action, reward, terminal):
+        """
+        Updates the agent after having executed the action returned by `forward`.
         If the policy is implemented by a neural network, this corresponds to a weight update using back-prop.
 
         # Argument
