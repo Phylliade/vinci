@@ -43,7 +43,8 @@ class DDPGAgent(Agent):
                  delta_clip=np.inf,
                  random_process=None,
                  custom_model_objects={},
-                 target_model_update=.001,
+                 target_critic_update=.001,
+                 target_actor_update=0.001,
                  **kwargs):
         if hasattr(actor.output, '__len__') and len(actor.output) > 1:
             raise ValueError(
@@ -64,16 +65,6 @@ class DDPGAgent(Agent):
 
         super(DDPGAgent, self).__init__(**kwargs)
 
-        # Soft vs hard target model updates.
-        if target_model_update < 0:
-            raise ValueError('`target_model_update` must be >= 0.')
-        elif target_model_update >= 1:
-            # Hard update every `target_model_update` steps.
-            target_model_update = int(target_model_update)
-        else:
-            # Soft update with `(1 - target_model_update) * old + target_model_update * new`.
-            target_model_update = float(target_model_update)
-
         if delta_range is not None:
             warnings.warn(
                 '`delta_range` is deprecated. Please use `delta_clip` instead, which takes a single scalar. For now we\'re falling back to `delta_range[1] = {}`'.
@@ -89,7 +80,8 @@ class DDPGAgent(Agent):
         self.random_process = random_process
         self.delta_clip = delta_clip
         self.gamma = gamma
-        self.target_model_update = target_model_update
+        self.target_critic_update = process_parameterization_variable(target_critic_update)
+        self.target_actor_update = process_parameterization_variable(target_actor_update)
         self.batch_size = batch_size
         self.train_interval = train_interval
         self.memory_interval = memory_interval
@@ -157,10 +149,10 @@ class DDPGAgent(Agent):
         self.actor.compile(optimizer='sgd', loss='mse')
 
         # Compile the critic.
-        if self.target_model_update < 1.:
+        if self.target_critic_update < 1.:
             # We use the `AdditionalUpdatesOptimizer` to efficiently soft-update the target model.
             critic_updates = get_soft_target_model_updates(
-                self.target_critic, self.critic, self.target_model_update)
+                self.target_critic, self.critic, self.target_critic_update)
             critic_optimizer = AdditionalUpdatesOptimizer(
                 critic_optimizer, critic_updates)
         self.critic.compile(
@@ -217,10 +209,10 @@ class DDPGAgent(Agent):
         actor_optimizer.get_gradients = get_gradients
         updates = actor_optimizer.get_updates(self.actor.trainable_weights,
                                               self.actor.constraints, None)
-        if self.target_model_update < 1.:
+        if self.target_actor_update < 1.:
             # Include soft target model updates.
             updates += get_soft_target_model_updates(
-                self.target_actor, self.actor, self.target_model_update)
+                self.target_actor, self.actor, self.target_actor_update)
         updates += self.actor.updates  # include other updates of the actor, e.g. for BN
 
         # Finally, combine it all into a callable function.
@@ -250,8 +242,10 @@ class DDPGAgent(Agent):
         self.actor.save_weights(actor_filepath, overwrite=overwrite)
         self.critic.save_weights(critic_filepath, overwrite=overwrite)
 
-    def update_target_models_hard(self):
+    def update_target_critic_hard(self):
         self.target_critic.set_weights(self.critic.get_weights())
+
+    def update_target_actor_hard(self):
         self.target_actor.set_weights(self.actor.get_weights())
 
     # TODO: implement pickle
@@ -348,8 +342,11 @@ class DDPGAgent(Agent):
             self.fit_actor(batches)
 
         # Update target networks
-        if self.target_model_update >= 1 and self.step % self.target_model_update == 0:
-            self.update_target_models_hard()
+        if self.target_critic_update >= 1 and self.step % self.target_critic_update == 0:
+            self.update_target_critic_hard()
+        # Update target networks
+        if self.target_actor_update >= 1 and self.step % self.target_actor_update == 0:
+            self.update_target_actor_hard()
 
         return metrics
 
@@ -444,3 +441,16 @@ class DDPGAgent(Agent):
             terminal_1=terminal1_batch,
             state_1=state1_batch)
         return (batches)
+
+
+def process_parameterization_variable(param):
+    # Soft vs hard target model updates.
+    if param < 0:
+        raise ValueError('`target_model_update` must be >= 0, currently at {}'.format(param))
+    elif param >= 1:
+        # Hard update every `target_model_update` steps.
+        param = int(param)
+    else:
+        # Soft update with `(1 - target_model_update) * old + target_model_update * new`.
+        param = float(param)
+    return(param)
