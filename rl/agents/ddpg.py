@@ -287,11 +287,14 @@ class DDPGAgent(Agent):
 
     def forward(self, observation):
         # Select an action.
-        action = self.select_action([observation])
+        state = self.memory.get_recent_state(observation)
+        action = self.select_action(state)
+        # action = self.select_action([observation])
 
-        action = self.processor.process_action(action)
+        if self.processor is not None:
+            action = self.processor.process_action(action)
 
-        return action
+        return(action)
 
     @property
     def layers(self):
@@ -302,12 +305,13 @@ class DDPGAgent(Agent):
         names = self.critic.metrics_names[:]
         if self.processor is not None:
             names += self.processor.metrics_names[:]
-        return names
+        return(names)
 
     def backward(self,
-                 observations,
+                 observation_0,
                  action,
                  reward,
+                 observation_1,
                  terminal=False,
                  fit_actor=True,
                  fit_critic=True):
@@ -319,8 +323,8 @@ class DDPGAgent(Agent):
 
         # Store most recent experience in memory.
         if self.step % self.memory_interval == 0:
-            self.memory.append(observations[0], action, reward,
-                               observations[1], terminal)
+            self.memory.append(observation_0, action, reward,
+                               observation_1, terminal)
 
         # Train the network on a single stochastic batch.
         can_train_either = self.step > self.nb_steps_warmup_critic or self.step > self.nb_steps_warmup_actor
@@ -417,8 +421,8 @@ class DDPGAgent(Agent):
         for e in experiences:
             # FIXME: The keras functions (predict_in_batch) expect to have a list of batches for the states
             # state0_batch = [[e1.state0], [e2.state_0], ...]
-            state0_batch.append([e.state0])
-            state1_batch.append([e.state1])
+            state0_batch.append(e.state0)
+            state1_batch.append(e.state1)
             reward_batch.append(e.reward)
             action_batch.append(e.action)
             terminal1_batch.append(0. if e.terminal1 else 1.)
