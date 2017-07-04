@@ -103,6 +103,7 @@ class Agent(object):
             raise ValueError('action_repetition must be >= 1, is {}'.format(
                 action_repetition))
 
+        # Process the different cases when either nb_steps or nb_episodes are specified
         if (nb_steps is None and nb_episodes is None):
             raise(ValueError("Please specify one (and only one) of nb_steps and nb_episodes"))
         elif(nb_steps is not None and nb_episodes is None):
@@ -165,10 +166,10 @@ class Agent(object):
         # Setup
         episode = 0
         self.step = 0
-        # observations is a tuple storing (observation_0, observation_1)
         # Where observation_0: Observation before the step
         # observation_1: Observation after the step
-        observations = None
+        observation_0 = None
+        observation_1 = None
         episode_reward = None
         episode_step = None
         did_abort = False
@@ -184,7 +185,7 @@ class Agent(object):
             # Run steps (and episodes) until the termination criterion is met
             while not (termination()):
                 # If we are at the beginning of a new episode, execute a startup sequence
-                if observations is None:
+                if observation_1 is None:
                     callbacks.on_episode_begin(episode)
                     episode_step = 0
                     episode_reward = 0.
@@ -199,6 +200,11 @@ class Agent(object):
                     # This slightly changes the start position between games.
                     if nb_max_start_steps != 0:
                         observation_0 = self._perform_random_steps(nb_max_start_steps, start_step_policy, env, observation_0, callbacks)
+
+                else:
+                    # We are in the middle of an episode
+                    # Update the observation
+                    observation_0 = observation_1
 
                 # At this point, we expect to be fully initialized.
                 assert episode_reward is not None
@@ -245,13 +251,11 @@ class Agent(object):
                     # Force a terminal state.
                     done = True
 
-                observations = (observation_0, observation_1)
-
                 # Scale the reward
                 reward = reward * reward_scaling
 
                 # Use the step information to train the algorithm
-                metrics = self.backward(observations, action, reward, terminal=done)
+                metrics = self.backward(observation_0, action, reward, observation_1, terminal=done)
 
                 # Collect statistics
                 episode_reward += reward
@@ -277,8 +281,9 @@ class Agent(object):
                     }
                     callbacks.on_episode_end(episode, logs=episode_logs)
 
+                    # Reset the episode variables
                     episode += 1
-                    observations = None
+                    observation_1 = None
                     episode_step = None
                     episode_reward = None
 
@@ -359,7 +364,7 @@ class Agent(object):
         """
         raise NotImplementedError()
 
-    def backward(self, observations, action, reward, terminal):
+    def backward(self, observation_0, action, reward, observation_1, terminal):
         """
         Updates the agent after having executed the action returned by `forward`.
         If the policy is implemented by a neural network, this corresponds to a weight update using back-prop.
