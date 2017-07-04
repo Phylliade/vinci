@@ -287,9 +287,9 @@ class DDPGAgent(Agent):
 
     def forward(self, observation):
         # Select an action.
-        state = self.memory.get_recent_state(observation)
-        action = self.select_action(state)
-        # action = self.select_action([observation])
+        # state = self.memory.get_recent_state(observation)
+        # action = self.select_action(state)
+        action = self.select_action([observation])
 
         if self.processor is not None:
             action = self.processor.process_action(action)
@@ -421,8 +421,8 @@ class DDPGAgent(Agent):
         for e in experiences:
             # FIXME: The keras functions (predict_in_batch) expect to have a list of batches for the states
             # state0_batch = [[e1.state0], [e2.state_0], ...]
-            state0_batch.append(e.state0)
-            state1_batch.append(e.state1)
+            state0_batch.append([e.state0])
+            state1_batch.append([e.state1])
             reward_batch.append(e.reward)
             action_batch.append(e.action)
             terminal1_batch.append(0. if e.terminal1 else 1.)
