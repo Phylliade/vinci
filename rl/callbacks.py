@@ -3,7 +3,6 @@ from __future__ import print_function
 import warnings
 import timeit
 import json
-from tempfile import mkdtemp
 
 import numpy as np
 
@@ -117,7 +116,7 @@ class TrainEpisodeLogger(Callback):
         self.train_start = timeit.default_timer()
         self.metrics_names = self.model.metrics_names
         print('Training for {} steps ...'.format(self.params['nb_steps']))
-        
+
     def on_train_end(self, logs):
         duration = timeit.default_timer() - self.train_start
         print('done, took {:.3f} seconds'.format(duration))
@@ -148,10 +147,11 @@ class TrainEpisodeLogger(Callback):
                 except Warning:
                     value = '--'
                     metrics_template += '{}: {}'
-                metrics_variables += [name, value]          
+                metrics_variables += [name, value]
         metrics_text = metrics_template.format(*metrics_variables)
 
-        nb_step_digits = str(int(np.ceil(np.log10(self.params['nb_steps']))) + 1)
+        nb_step_digits = str(
+            int(np.ceil(np.log10(self.params['nb_steps']))) + 1)
         template = '{step: ' + nb_step_digits + 'd}/{nb_steps}: episode: {episode}, duration: {duration:.3f}s, episode steps: {episode_steps}, steps per second: {sps:.0f}, episode reward: {episode_reward:.3f}, mean reward: {reward_mean:.3f} [{reward_min:.3f}, {reward_max:.3f}], mean action: {action_mean:.3f} [{action_min:.3f}, {action_max:.3f}], mean observation: {obs_mean:.3f} [{obs_min:.3f}, {obs_max:.3f}], {metrics}'
         variables = {
             'step': self.step,
@@ -217,32 +217,43 @@ class TrainIntervalLogger(Callback):
         if self.step % self.interval == 0:
             if len(self.episode_rewards) > 0:
                 metrics = np.array(self.metrics)
-                assert metrics.shape == (self.interval, len(self.metrics_names))
+                assert metrics.shape == (self.interval,
+                                         len(self.metrics_names))
                 formatted_metrics = ''
                 if not np.isnan(metrics).all():  # not all values are means
                     means = np.nanmean(self.metrics, axis=0)
-                    assert means.shape == (len(self.metrics_names),)
+                    assert means.shape == (len(self.metrics_names), )
                     for name, mean in zip(self.metrics_names, means):
                         formatted_metrics += ' - {}: {:.3f}'.format(name, mean)
-                
+
                 formatted_infos = ''
                 if len(self.infos) > 0:
                     infos = np.array(self.infos)
                     if not np.isnan(infos).all():  # not all values are means
                         means = np.nanmean(self.infos, axis=0)
-                        assert means.shape == (len(self.info_names),)
+                        assert means.shape == (len(self.info_names), )
                         for name, mean in zip(self.info_names, means):
-                            formatted_infos += ' - {}: {:.3f}'.format(name, mean)
-                print('{} episodes - episode_reward: {:.3f} [{:.3f}, {:.3f}]{}{}'.format(len(self.episode_rewards), np.mean(self.episode_rewards), np.min(self.episode_rewards), np.max(self.episode_rewards), formatted_metrics, formatted_infos))
+                            formatted_infos += ' - {}: {:.3f}'.format(
+                                name, mean)
+                print(
+                    '{} episodes - episode_reward: {:.3f} [{:.3f}, {:.3f}]{}{}'.
+                    format(
+                        len(self.episode_rewards),
+                        np.mean(self.episode_rewards),
+                        np.min(self.episode_rewards),
+                        np.max(self.episode_rewards), formatted_metrics,
+                        formatted_infos))
                 print('')
             self.reset()
-            print('Interval {} ({} steps performed)'.format(self.step // self.interval + 1, self.step))
+            print('Interval {} ({} steps performed)'.format(
+                self.step // self.interval + 1, self.step))
 
     def on_step_end(self, step, logs):
         if self.info_names is None:
             self.info_names = logs['info'].keys()
         values = [('reward', logs['reward'])]
-        self.progbar.update((self.step % self.interval) + 1, values=values, force=True)
+        self.progbar.update(
+            (self.step % self.interval) + 1, values=values, force=True)
         self.step += 1
         self.metrics.append(logs['metrics'])
         if len(self.info_names) > 0:
@@ -277,7 +288,7 @@ class FileLogger(Callback):
 
     def on_episode_end(self, episode, logs):
         duration = timeit.default_timer() - self.starts[episode]
-        
+
         metrics = self.metrics[episode]
         if np.isnan(metrics).all():
             mean_metrics = np.array([np.nan for _ in self.metrics_names])
@@ -315,7 +326,8 @@ class FileLogger(Callback):
             assert len(self.data[key]) == len(sorted_indexes)
             # We convert to np.array() and then to list to convert from np datatypes to native datatypes.
             # This is necessary because json.dump cannot handle np.float32, for example.
-            sorted_data[key] = np.array([self.data[key][idx] for idx in sorted_indexes]).tolist()
+            sorted_data[key] = np.array(
+                [self.data[key][idx] for idx in sorted_indexes]).tolist()
 
         # Overwrite already open file. We can simply seek to the beginning since the file will
         # grow strictly monotonously.
@@ -344,5 +356,6 @@ class ModelIntervalCheckpoint(Callback):
 
         filepath = self.filepath.format(step=self.total_steps, **logs)
         if self.verbose > 0:
-            print('Step {}: saving model to {}'.format(self.total_steps, filepath))
+            print('Step {}: saving model to {}'.format(self.total_steps,
+                                                       filepath))
         self.model.save_weights(filepath, overwrite=True)
