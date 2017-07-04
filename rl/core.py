@@ -62,7 +62,8 @@ class Agent(object):
              nb_max_start_steps=0,
              start_step_policy=None,
              log_interval=10000,
-             nb_max_episode_steps=None):
+             nb_max_episode_steps=None,
+             reward_scaling=1.):
         """Trains the agent on the given environment.
 
         # Arguments
@@ -89,6 +90,7 @@ class Agent(object):
             nb_max_episode_steps (integer): Number of steps per episode that the agent performs before
                 automatically resetting the environment. Set to `None` if each episode should run
                 (potentially indefinitely) until the environment signals a terminal state.
+            reward_scaling (float): The amount with which the reward will be scaled
 
         # Returns
             A `keras.callbacks.History` instance that recorded the entire training process.
@@ -245,6 +247,9 @@ class Agent(object):
 
                 observations = (observation_0, observation_1)
 
+                # Scale the reward
+                reward = reward * reward_scaling
+
                 # Use the step information to train the algorithm
                 metrics = self.backward(observations, action, reward, terminal=done)
 
@@ -316,31 +321,12 @@ class Agent(object):
             env,
             nb_steps,
             **kwargs):
-        """Trains the agent on the given environment.
+        """
+        Train the agent on the given environment.
 
         # Arguments
             env: (`Env` instance): Environment that the agent interacts with. See [Env](#env) for details.
             nb_steps (integer): Number of training steps to be performed.
-            action_repetition (integer): Number of times the agent repeats the same action without
-                observing the environment again. Setting this to a value > 1 can be useful
-                if a single action only has a very small effect on the environment.
-            callbacks (list of `keras.callbacks.Callback` or `rl.callbacks.Callback` instances):
-                List of callbacks to apply during training. See [callbacks](/callbacks) for details.
-            verbose (integer): 0 for no logging, 1 for interval logging (compare `log_interval`), 2 for episode logging
-            visualize (boolean): If `True`, the environment is visualized during training. However,
-                this is likely going to slow down training significantly and is thus intended to be
-                a debugging instrument.
-            nb_max_start_steps (integer): Number of maximum steps that the agent performs at the beginning
-                of each episode using `start_step_policy`. Notice that this is an upper limit since
-                the exact number of steps to be performed is sampled uniformly from [0, max_start_steps]
-                at the beginning of each episode.
-            start_step_policy (`lambda observation: action`): The policy
-                to follow if `nb_max_start_steps` > 0. If set to `None`, a random action is performed.
-            log_interval (integer): If `verbose` = 1, the number of steps that are considered to be an interval.
-            nb_max_episode_steps (integer): Number of steps per episode that the agent performs before
-                automatically resetting the environment. Set to `None` if each episode should run
-                (potentially indefinitely) until the environment signals a terminal state.
-
         # Returns
             A `keras.callbacks.History` instance that recorded the entire training process.
         """
@@ -350,6 +336,10 @@ class Agent(object):
              env,
              nb_episodes=1,
              **kwargs):
+        """
+        Test the agent on the given environment.
+        In training mode, noise is removed.
+        """
         return(self._run(env=env, nb_episodes=nb_episodes, training=False, **kwargs))
 
     def reset_states(self):

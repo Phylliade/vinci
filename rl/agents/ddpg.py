@@ -25,27 +25,29 @@ class DDPGAgent(Agent):
     """Write me
     """
 
-    def __init__(self,
-                 nb_actions,
-                 actions_low,
-                 actions_high,
-                 actor,
-                 critic,
-                 critic_action_input,
-                 memory,
-                 gamma=.99,
-                 batch_size=32,
-                 nb_steps_warmup_critic=1000,
-                 nb_steps_warmup_actor=1000,
-                 train_interval=1,
-                 memory_interval=1,
-                 delta_range=None,
-                 delta_clip=np.inf,
-                 random_process=None,
-                 custom_model_objects={},
-                 target_critic_update=.001,
-                 target_actor_update=0.001,
-                 **kwargs):
+    def __init__(
+        self,
+        nb_actions,
+        actions_low,
+        actions_high,
+        actor,
+        critic,
+        critic_action_input,
+        memory,
+        gamma=.99,
+        batch_size=32,
+        nb_steps_warmup_critic=1000,
+        nb_steps_warmup_actor=1000,
+        train_interval=1,
+        memory_interval=1,
+        delta_range=None,
+        delta_clip=np.inf,
+        random_process=None,
+        custom_model_objects={},
+        target_critic_update=.001,
+        target_actor_update=0.001,
+        **kwargs
+    ):
         if hasattr(actor.output, '__len__') and len(actor.output) > 1:
             raise ValueError(
                 'Actor "{}" has more than one output. DDPG expects an actor that has a single output.'.
@@ -80,8 +82,10 @@ class DDPGAgent(Agent):
         self.random_process = random_process
         self.delta_clip = delta_clip
         self.gamma = gamma
-        self.target_critic_update = process_parameterization_variable(target_critic_update)
-        self.target_actor_update = process_parameterization_variable(target_actor_update)
+        self.target_critic_update = process_parameterization_variable(
+            target_critic_update)
+        self.target_actor_update = process_parameterization_variable(
+            target_actor_update)
         self.batch_size = batch_size
         self.train_interval = train_interval
         self.memory_interval = memory_interval
@@ -315,12 +319,8 @@ class DDPGAgent(Agent):
 
         # Store most recent experience in memory.
         if self.step % self.memory_interval == 0:
-            self.memory.append(
-                observations[0],
-                action,
-                reward,
-                observations[1],
-                terminal)
+            self.memory.append(observations[0], action, reward,
+                               observations[1], terminal)
 
         # Train the network on a single stochastic batch.
         can_train_either = self.step > self.nb_steps_warmup_critic or self.step > self.nb_steps_warmup_actor
@@ -446,11 +446,12 @@ class DDPGAgent(Agent):
 def process_parameterization_variable(param):
     # Soft vs hard target model updates.
     if param < 0:
-        raise ValueError('`target_model_update` must be >= 0, currently at {}'.format(param))
+        raise ValueError('`target_model_update` must be >= 0, currently at {}'.
+                         format(param))
     elif param >= 1:
         # Hard update every `target_model_update` steps.
         param = int(param)
     else:
         # Soft update with `(1 - target_model_update) * old + target_model_update * new`.
         param = float(param)
-    return(param)
+    return (param)
