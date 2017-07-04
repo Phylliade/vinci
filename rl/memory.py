@@ -94,7 +94,7 @@ class SimpleMemory(object):
 
         return (self.get_idxs(batch_idxs))
 
-    def append(self, observation_0, action, reward, observation_1, terminal):
+    def append(self, observation_0, action, reward, observation_1, terminal, training=True):
         self.buffer.append(
             Experience(observation_0, action, reward, observation_1, terminal))
 
@@ -127,14 +127,8 @@ class Memory(object):
     def sample(self, batch_size, batch_idxs=None):
         raise NotImplementedError()
 
-    def append(self,
-               observation,
-               action,
-               reward,
-               terminal,
-               *args,
-               training=True):
-        self.recent_observations.append(observation)
+    def append(self, observation_0, action, reward, observation_1, terminal, training=True):
+        self.recent_observations.append(observation_0)
         self.recent_terminals.append(terminal)
 
     def get_recent_state(self, current_observation):
@@ -239,14 +233,14 @@ class SequentialMemory(Memory):
         assert len(experiences) == batch_size
         return experiences
 
-    def append(self, observation, action, reward, terminal, training=True):
+    def append(self, observation_0, action, reward, observation_1, terminal, training=True):
         super(SequentialMemory, self).append(
-            observation, action, reward, terminal, training=training)
+            observation_0, action, reward, observation_1, terminal, training=training)
 
         # This needs to be understood as follows: in `observation`, take `action`, obtain `reward`
         # and weather the next state is `terminal` or not.
         if training:
-            self.observations.append(observation)
+            self.observations.append(observation_0)
             self.actions.append(action)
             self.rewards.append(reward)
             self.terminals.append(terminal)
