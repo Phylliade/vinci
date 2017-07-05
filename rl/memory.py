@@ -101,15 +101,20 @@ class SimpleMemory(object):
     @classmethod
     def from_file(cls, limit, window_length, file_path):
         """Create a memory from a pickle file"""
-        with open(file_path) as fd:
+        with open(file_path, "rb") as fd:
             memory_database = pickle.load(fd)
 
         memory = cls(limit, window_length)
 
         for experience in memory_database:
-            memory.append(experience)
+            memory.append(*experience)
 
-        return (memory)
+        return(memory)
+
+    def dump(file):
+        """Dump the memory into a pickle file"""
+        with open(file, "wb") as fd:
+            pickle.dump(self.buffer, fd)
 
     @property
     def entries_count(self):
