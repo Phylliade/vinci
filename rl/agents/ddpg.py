@@ -246,6 +246,11 @@ class DDPGAgent(Agent):
         self.actor.save_weights(actor_filepath, overwrite=overwrite)
         self.critic.save_weights(critic_filepath, overwrite=overwrite)
 
+    def save(self, name="DDPG"):
+        """Save the model as an HDF5 file"""
+        self.actor.save(name + "_actor.h5")
+        self.critic.save(name + "_critic.h5")
+
     def update_target_critic_hard(self):
         self.target_critic.set_weights(self.critic.get_weights())
 
