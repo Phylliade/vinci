@@ -327,29 +327,33 @@ class DDPGAgent(Agent):
                                observation_1, terminal)
 
         # Train the network on a single stochastic batch.
-        can_train_either = self.step > self.nb_steps_warmup_critic or self.step > self.nb_steps_warmup_actor
+        if self.step % self.train_interval == 0:
+            # Update critic, if warm up is over.
+            fit_critic = (fit_critic and self.step > self.nb_steps_warmup_critic)
+            # Update critic, if warm up is over.
+            fit_actor = (fit_actor and self.step > self.nb_steps_warmup_actor)
 
-        if can_train_either and self.step % self.train_interval == 0:
-            metrics = self.fit_nets(fit_critic=fit_critic, fit_actor=fit_actor)
+            # Hard update the target nets if necessary
+            hard_update_target_actor = self.step % self.target_actor_update == 0
+            hard_update_target_critic = self.step % self.target_critic_update == 0
+
+            metrics = self.fit_nets(fit_critic=fit_critic, fit_actor=fit_actor, hard_update_target_critic=hard_update_target_critic, hard_update_target_actor=hard_update_target_actor)
 
         return metrics
 
-    def fit_nets(self, fit_critic=True, fit_actor=True):
+    def fit_nets(self, fit_critic=True, fit_actor=True, hard_update_target_critic=False, hard_update_target_actor=False):
         batches = self.process_batches()
 
-        # Update critic, if warm up is over.
-        if fit_critic and self.step > self.nb_steps_warmup_critic:
+        if fit_critic:
             metrics = self.fit_critic(batches)
 
-        # Update actor, if warm up is over.
-        if fit_actor and self.step > self.nb_steps_warmup_actor:
+        if fit_actor:
             self.fit_actor(batches)
 
-        # Update target networks
-        if self.target_critic_update >= 1 and self.step % self.target_critic_update == 0:
+        # Hard update target networks, only if necessary
+        if self.target_actor_update >= 1 and hard_update_target_critic:
             self.update_target_critic_hard()
-        # Update target networks
-        if self.target_actor_update >= 1 and self.step % self.target_actor_update == 0:
+        if self.target_critic_update >= 1 and hard_update_target_actor:
             self.update_target_actor_hard()
 
         return metrics
@@ -389,18 +393,16 @@ class DDPGAgent(Agent):
         return (metrics)
 
     def fit_actor(self, batches):
-        # Update actor, if warm up is over.
-        if self.step > self.nb_steps_warmup_actor:
-            # TODO: implement metrics for actor
-            if len(self.actor.inputs) >= 2:
-                inputs = batches.state_0[:] + batches.state_0[:]
+        # TODO: implement metrics for actor
+        if len(self.actor.inputs) >= 2:
+            inputs = batches.state_0[:] + batches.state_0[:]
 
-            else:
-                inputs = [batches.state_0, +batches.state_0]
-            if self.uses_learning_phase:
-                inputs += [self.training]
-            action_values = self.actor_train_fn(inputs)[0]
-            assert action_values.shape == (self.batch_size, self.nb_actions)
+        else:
+            inputs = [batches.state_0, +batches.state_0]
+        if self.uses_learning_phase:
+            inputs += [self.training]
+        action_values = self.actor_train_fn(inputs)[0]
+        assert action_values.shape == (self.batch_size, self.nb_actions)
 
     def process_batches(self):
         """

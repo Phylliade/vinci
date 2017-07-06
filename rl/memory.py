@@ -111,7 +111,7 @@ class SimpleMemory(object):
 
         return(memory)
 
-    def dump(file):
+    def dump(self, file):
         """Dump the memory into a pickle file"""
         with open(file, "wb") as fd:
             pickle.dump(self.buffer, fd)
