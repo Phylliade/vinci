@@ -311,7 +311,7 @@ class DDPGAgent(Agent):
         # Select an action.
         # state = self.memory.get_recent_state(observation)
         # action = self.select_action(state)
-        action = self.select_action([observation])
+        action = self.select_action(observation)
 
         if self.processor is not None:
             action = self.processor.process_action(action)
