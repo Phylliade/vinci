@@ -149,9 +149,9 @@ class DDPGAgent(Agent):
 
         if len(metrics) == 2 and hasattr(metrics[0], '__len__') and hasattr(
                 metrics[1], '__len__'):
-            actor_metrics, critic_metrics = metrics
+            _, critic_metrics = metrics
         else:
-            actor_metrics = critic_metrics = metrics
+            critic_metrics = metrics
 
         def clipped_error(y_true, y_pred):
             return K.mean(huber_loss(y_true, y_pred, self.delta_clip), axis=-1)
@@ -293,6 +293,7 @@ class DDPGAgent(Agent):
         return self.processor.process_state_batch(batch)
 
     def select_action(self, state):
+        # [state] is the unprocessed version of a batch
         batch = self.process_state_batch([state])
         action = self.actor.predict_on_batch(batch).flatten()
         assert action.shape == (self.nb_actions, )
