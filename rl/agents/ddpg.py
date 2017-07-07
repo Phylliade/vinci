@@ -18,11 +18,28 @@ def mean_q(y_true, y_pred):
     return K.mean(K.max(y_pred, axis=-1))
 
 
-# Deep DPG as described by Lillicrap et al. (2015)
-# http://arxiv.org/pdf/1509.02971v2.pdf
-# http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.646.4324&rep=rep1&type=pdf
 class DDPGAgent(Agent):
-    """Write me
+    """
+    Deep Deterministic Policy Gradient Agent.
+
+    :param nb_actions:
+    :param actions_low:
+    :param actions_high:
+    :param actor:
+    :param critic:
+    :param critic_action_input:
+    :param memory:
+    :param gamma:
+    :param batch_size:
+    :param nb_steps_warmup_critic:
+    :param nb_steps_warmup_actor:
+    :param train_interval:
+    :param delta_range:
+    :param delta_clip:
+    :param random_process:
+    :param custom_model_objects:
+    :param target_critic_update:
+    :param target_actor_update:
     """
 
     def __init__(
@@ -426,10 +443,8 @@ class DDPGAgent(Agent):
         terminal1_batch = []
         state1_batch = []
         for e in experiences:
-            # FIXME: The keras functions (predict_in_batch) expect to have a list of batches for the states
-            # state0_batch = [[e1.state0], [e2.state_0], ...]
-            state0_batch.append([e.state0])
-            state1_batch.append([e.state1])
+            state0_batch.append(e.state0)
+            state1_batch.append(e.state1)
             reward_batch.append(e.reward)
             action_batch.append(e.action)
             terminal1_batch.append(0. if e.terminal1 else 1.)
