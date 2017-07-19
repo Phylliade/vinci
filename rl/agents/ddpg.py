@@ -9,10 +9,10 @@ import keras.optimizers as optimizers
 from collections import namedtuple
 
 from rl.core import Agent
-from rl.util import huber_loss, clone_model, get_soft_target_model_updates, clone_optimizer, AdditionalUpdatesOptimizer
+from rl.util import huber_loss, clone_model, get_soft_target_model_updates, clone_optimizer, AdditionalUpdatesOptimizer, get_soft_target_model_ops
 
 Batch = namedtuple("Batch", ("state_0", "action", "reward", "state_1",
-                   "terminal_1"))
+                             "terminal_1"))
 
 
 def mean_q(y_true, y_pred):
@@ -43,29 +43,27 @@ class DDPGAgent(Agent):
     :param target_actor_update:
     """
 
-    def __init__(
-        self,
-        nb_actions,
-        actions_low,
-        actions_high,
-        actor,
-        critic,
-        critic_action_input,
-        memory,
-        gamma=.99,
-        batch_size=32,
-        nb_steps_warmup_critic=1000,
-        nb_steps_warmup_actor=1000,
-        train_interval=1,
-        memory_interval=1,
-        delta_range=None,
-        delta_clip=np.inf,
-        random_process=None,
-        custom_model_objects={},
-        target_critic_update=.001,
-        target_actor_update=0.001,
-        **kwargs
-    ):
+    def __init__(self,
+                 nb_actions,
+                 actions_low,
+                 actions_high,
+                 actor,
+                 critic,
+                 critic_action_input,
+                 memory,
+                 gamma=.99,
+                 batch_size=32,
+                 nb_steps_warmup_critic=1000,
+                 nb_steps_warmup_actor=1000,
+                 train_interval=1,
+                 memory_interval=1,
+                 delta_range=None,
+                 delta_clip=np.inf,
+                 random_process=None,
+                 custom_model_objects={},
+                 target_critic_update=.001,
+                 target_actor_update=1,
+                 **kwargs):
         if hasattr(actor.output, '__len__') and len(actor.output) > 1:
             raise ValueError(
                 'Actor "{}" has more than one output. DDPG expects an actor that has a single output.'.
@@ -186,11 +184,20 @@ class DDPGAgent(Agent):
             loss=clipped_error,
             metrics=critic_metrics)
 
+        if self.target_actor_update < 1.:
+            # Include soft target model updates.
+            self.target_actor_train_fn = get_soft_target_model_ops(
+                self.target_actor.weights, self.actor.weights,
+                self.target_actor_update)
+
         actor_optimizer = tf.train.AdamOptimizer()
         # Be careful to negate the gradient
         # Since the optimizer wants to minimize the value
-        loss = - self.critic([self.state, self.actor(self.state)])
-        self.actor_train_fn = actor_optimizer.minimize(loss, var_list=self.actor.weights)
+        loss = -K.mean(self.critic([self.state, self.actor(self.state)]))
+        # TODO: Clip the policy gradient
+
+        self.actor_train_fn = actor_optimizer.minimize(
+            loss, var_list=self.actor.trainable_weights)
 
         self.session.run(tf.global_variables_initializer())
 
@@ -242,8 +249,10 @@ class DDPGAgent(Agent):
 
     def select_action(self, state):
         # [state] is the unprocessed version of a batch
-        batch = self.process_state_batch([state])
-        action = self.actor.predict_on_batch(batch).flatten()
+        batch_state = self.process_state_batch([state])
+        # action = self.actor.predict_on_batch(batch).flatten()
+        action = self.session.run(self.actor(self.state), feed_dict={self.state: batch_state})[0]
+        print(action.shape)
         assert action.shape == (self.nb_actions, )
 
         # Apply noise, if a random process is set.
@@ -265,7 +274,7 @@ class DDPGAgent(Agent):
         if self.processor is not None:
             action = self.processor.process_action(action)
 
-        return(action)
+        return (action)
 
     @property
     def layers(self):
@@ -276,7 +285,7 @@ class DDPGAgent(Agent):
         names = self.critic.metrics_names[:]
         if self.processor is not None:
             names += self.processor.metrics_names[:]
-        return(names)
+        return (names)
 
     def backward(self,
                  observation_0,
@@ -294,13 +303,14 @@ class DDPGAgent(Agent):
 
         # Store most recent experience in memory.
         if self.step % self.memory_interval == 0:
-            self.memory.append(observation_0, action, reward,
-                               observation_1, terminal)
+            self.memory.append(observation_0, action, reward, observation_1,
+                               terminal)
 
         # Train the network on a single stochastic batch.
         if self.step % self.train_interval == 0:
             # Update critic, if warm up is over.
-            fit_critic = (fit_critic and self.step > self.nb_steps_warmup_critic)
+            fit_critic = (fit_critic and
+                          self.step > self.nb_steps_warmup_critic)
             # Update critic, if warm up is over.
             fit_actor = (fit_actor and self.step > self.nb_steps_warmup_actor)
 
@@ -308,11 +318,19 @@ class DDPGAgent(Agent):
             hard_update_target_actor = self.step % self.target_actor_update == 0
             hard_update_target_critic = self.step % self.target_critic_update == 0
 
-            metrics = self.fit_nets(fit_critic=fit_critic, fit_actor=fit_actor, hard_update_target_critic=hard_update_target_critic, hard_update_target_actor=hard_update_target_actor)
+            metrics = self.fit_nets(
+                fit_critic=fit_critic,
+                fit_actor=fit_actor,
+                hard_update_target_critic=hard_update_target_critic,
+                hard_update_target_actor=hard_update_target_actor)
 
         return metrics
 
-    def fit_nets(self, fit_critic=True, fit_actor=True, hard_update_target_critic=False, hard_update_target_actor=False):
+    def fit_nets(self,
+                 fit_critic=True,
+                 fit_actor=True,
+                 hard_update_target_critic=False,
+                 hard_update_target_actor=False):
         """Fit the actor and critic networks"""
         # TODO: Export metrics to tensorboard
         batch = self.get_batch()
@@ -326,8 +344,11 @@ class DDPGAgent(Agent):
             self.fit_actor(batch)
 
         # Hard update target networks, only if necessary
-        if self.target_actor_update >= 1 and hard_update_target_critic:
-            self.update_target_critic_hard()
+        if self.target_actor_update >= 1:
+            if hard_update_target_critic:
+                self.update_target_critic_hard()
+        else:
+            self.session.run(self.target_actor_train_fn)
         if self.target_critic_update >= 1 and hard_update_target_actor:
             self.update_target_actor_hard()
 
@@ -337,13 +358,15 @@ class DDPGAgent(Agent):
         """Fit the critic network"""
         # Get the target action
         # \pi(s_t)
-        target_actions = self.target_actor.predict_on_batch(batch.state_1)
+        # target_actions = self.target_actor.predict_on_batch(batch.state_1)
+        target_actions = self.session.run(self.target_actor(self.state), feed_dict={self.state: batch.state_1})
         assert target_actions.shape == (self.batch_size, self.nb_actions)
 
         # Get the target Q value
         # Q(s_t, \pi(s_t))
         # state1_action_batch is (s_t, \pi(s_t))
-        batch_state1_action1 = self.build_critic_input(batch.state_1, target_actions)
+        batch_state1_action1 = self.build_critic_input(batch.state_1,
+                                                       target_actions)
         target_q_values = self.target_critic.predict_on_batch(
             batch_state1_action1).flatten()
         assert target_q_values.shape == (self.batch_size, )
@@ -358,8 +381,10 @@ class DDPGAgent(Agent):
             self.batch_size, 1)
 
         # Perform a single batch update on the critic network.
-        batch_state0_action0 = self.build_critic_input(batch.state_0, batch.action)
-        metrics = self.critic.train_on_batch(batch_state0_action0, critic_targets)
+        batch_state0_action0 = self.build_critic_input(batch.state_0,
+                                                       batch.action)
+        metrics = self.critic.train_on_batch(batch_state0_action0,
+                                             critic_targets)
         if self.processor is not None:
             metrics += self.processor.metrics
 
@@ -369,7 +394,7 @@ class DDPGAgent(Agent):
         # TODO: Find automatically the action's Position
         # Hard-coded (in [1]) for now
         batch_state_action = [state, action]
-        return(batch_state_action)
+        return (batch_state_action)
 
     def fit_actor(self, batch):
         """Fit the actor network"""
@@ -380,7 +405,10 @@ class DDPGAgent(Agent):
         if self.uses_learning_phase:
             inputs += [self.training]
 
-        self.session.run(self.actor_train_fn, feed_dict={self.state: batch.state_0, K.learning_phase(): 1})
+        self.session.run(
+            self.actor_train_fn,
+            feed_dict={self.state: batch.state_0,
+                       K.learning_phase(): 1})
         # action_values = self.session.run(self.actor_train_fn(inputs)[0]
         # assert action_values.shape == (self.batch_size, self.nb_actions)
 
@@ -424,7 +452,7 @@ class DDPGAgent(Agent):
             reward=reward_batch,
             terminal_1=terminal1_batch,
             state_1=state1_batch)
-        return(batch)
+        return (batch)
 
 
 def process_parameterization_variable(param):
