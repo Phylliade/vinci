@@ -10,8 +10,8 @@ from collections import namedtuple
 from rl.core import Agent
 from rl.util import huber_loss, clone_model, get_soft_target_model_updates, clone_optimizer, AdditionalUpdatesOptimizer
 
-Batches = namedtuple("Batches", ("state_0", "action", "reward", "state_1",
-                                 "terminal_1"))
+Batch = namedtuple("Batch", ("state_0", "action", "reward", "state_1",
+                   "terminal_1"))
 
 
 def mean_q(y_true, y_pred):
@@ -193,13 +193,7 @@ class DDPGAgent(Agent):
         combined_output = self.critic(combined_inputs)
         if K.backend() == 'tensorflow':
             grads = K.gradients(combined_output, self.actor.trainable_weights)
-            grads = [g / float(self.batch_size)
-                     for g in grads]  # since TF sums over the batch
-        elif K.backend() == 'theano':
-            import theano.tensor as T
-            grads = T.jacobian(combined_output.flatten(),
-                               self.actor.trainable_weights)
-            grads = [K.mean(g, axis=0) for g in grads]
+            grads = [g / float(self.batch_size) for g in grads]  # since TF sums over the batch
         else:
             raise RuntimeError(
                 'Unknown Keras backend "{}".'.format(K.backend()))
@@ -365,13 +359,17 @@ class DDPGAgent(Agent):
         return metrics
 
     def fit_nets(self, fit_critic=True, fit_actor=True, hard_update_target_critic=False, hard_update_target_actor=False):
-        batches = self.process_batches()
+        """Fit the actor and critic networks"""
+        # TODO: Export metrics to tensorboard
+        batch = self.get_batch()
 
         if fit_critic:
-            metrics = self.fit_critic(batches)
+            metrics = self.fit_critic(batch)
+        else:
+            metrics = None
 
         if fit_actor:
-            self.fit_actor(batches)
+            self.fit_actor(batch)
 
         # Hard update target networks, only if necessary
         if self.target_actor_update >= 1 and hard_update_target_critic:
@@ -381,41 +379,44 @@ class DDPGAgent(Agent):
 
         return metrics
 
-    def fit_critic(self, batches):
-        target_actions = self.target_actor.predict_on_batch(batches.state_1)
+    def fit_critic(self, batch):
+        """Fit the critic network"""
+        # Get the target action
+        # \pi(s_t)
+        target_actions = self.target_actor.predict_on_batch(batch.state_1)
         assert target_actions.shape == (self.batch_size, self.nb_actions)
-        if len(self.critic.inputs) >= 3:
-            state1_batch_with_action = batches
-        else:
-            state1_batch_with_action = [batches.state_1]
-        state1_batch_with_action.insert(self.critic_action_input_idx,
-                                        target_actions)
+
+        # Get the target Q value
+        # Q(s_t, \pi(s_t))
+        # state1_action_batch is (s_t, \pi(s_t))
+        batch_state1_action1 = self.build_critic_input(batch.state_1, target_actions)
         target_q_values = self.target_critic.predict_on_batch(
-            state1_batch_with_action).flatten()
+            batch_state1_action1).flatten()
         assert target_q_values.shape == (self.batch_size, )
 
-        # Compute r_t + gamma * max_a Q(s_t+1, a) and update the target ys accordingly,
+        # Compute the critic targets:
+        # r_t + gamma * Q(s_t, \pi(s_t))
         # but only for the affected output units (as given by action_batch).
         discounted_reward_batch = self.gamma * target_q_values
-        discounted_reward_batch *= batches.terminal_1
-        assert discounted_reward_batch.shape == batches.reward.shape
-        targets = (batches.reward + discounted_reward_batch).reshape(
+        discounted_reward_batch *= batch.terminal_1
+        assert discounted_reward_batch.shape == batch.reward.shape
+        critic_targets = (batch.reward + discounted_reward_batch).reshape(
             self.batch_size, 1)
 
         # Perform a single batch update on the critic network.
-        if len(self.critic.inputs) >= 3:
-            state0_batch_with_action = batches.state_0[:]
-        else:
-            state0_batch_with_action = [batches.state_0]
-        state0_batch_with_action.insert(self.critic_action_input_idx,
-                                        batches.action)
-        metrics = self.critic.train_on_batch(state0_batch_with_action, targets)
+        batch_state0_action0 = self.build_critic_input(batch.state_0, batch.action)
+        metrics = self.critic.train_on_batch(batch_state0_action0, critic_targets)
         if self.processor is not None:
             metrics += self.processor.metrics
 
         return (metrics)
 
+    def build_critic_input(self, state, action):
+        batch_state_action = [state, action]
+        return(batch_state_action)
+
     def fit_actor(self, batches):
+        """Fit the actor network"""
         # TODO: implement metrics for actor
         if len(self.actor.inputs) >= 2:
             inputs = batches.state_0[:] + batches.state_0[:]
@@ -427,9 +428,9 @@ class DDPGAgent(Agent):
         action_values = self.actor_train_fn(inputs)[0]
         assert action_values.shape == (self.batch_size, self.nb_actions)
 
-    def process_batches(self):
+    def get_batch(self):
         """
-        Process the batches
+        Get and process a batch
         Split each a batch of experiences into batches of state_0, action etc...
         """
         # TODO: Remove this function
@@ -461,13 +462,13 @@ class DDPGAgent(Agent):
         assert terminal1_batch.shape == reward_batch.shape
         assert action_batch.shape == (self.batch_size, self.nb_actions)
 
-        batches = Batches(
+        batch = Batch(
             state_0=state0_batch,
             action=action_batch,
             reward=reward_batch,
             terminal_1=terminal1_batch,
             state_1=state1_batch)
-        return (batches)
+        return(batch)
 
 
 def process_parameterization_variable(param):

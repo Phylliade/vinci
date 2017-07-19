@@ -4,6 +4,8 @@ from copy import deepcopy
 
 import numpy as np
 from keras.callbacks import History
+import tensorflow as tf
+
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 
@@ -44,6 +46,7 @@ class Agent(object):
             self.processor = Processor()
         self.training = False
         self.step = 0
+        self.session = tf.Session()
 
     def get_config(self):
         """Configuration of the agent for serialization.
