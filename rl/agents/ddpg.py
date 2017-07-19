@@ -3,6 +3,7 @@ import os
 import warnings
 
 import numpy as np
+import tensorflow as tf
 import keras.backend as K
 import keras.optimizers as optimizers
 from collections import namedtuple
@@ -89,6 +90,10 @@ class DDPGAgent(Agent):
                 '`delta_range` is deprecated. Please use `delta_clip` instead, which takes a single scalar. For now we\'re falling back to `delta_range[1] = {}`'.
                 format(delta_range[1]))
             delta_clip = delta_range[1]
+
+        # Get placeholders
+        self.state = critic.inputs[0]
+        self.action = critic.inputs[1]
 
         # Parameters.
         self.nb_actions = nb_actions
@@ -181,64 +186,13 @@ class DDPGAgent(Agent):
             loss=clipped_error,
             metrics=critic_metrics)
 
-        # Combine actor and critic so that we can get the policy gradient.
-        combined_inputs = []
-        critic_inputs = []
-        for i in self.critic.input:
-            if i == self.critic_action_input:
-                combined_inputs.append(self.actor.output)
-            else:
-                combined_inputs.append(i)
-                critic_inputs.append(i)
-        combined_output = self.critic(combined_inputs)
-        if K.backend() == 'tensorflow':
-            grads = K.gradients(combined_output, self.actor.trainable_weights)
-            grads = [g / float(self.batch_size) for g in grads]  # since TF sums over the batch
-        else:
-            raise RuntimeError(
-                'Unknown Keras backend "{}".'.format(K.backend()))
+        actor_optimizer = tf.train.AdamOptimizer()
+        # Be careful to negate the gradient
+        # Since the optimizer wants to minimize the value
+        loss = - self.critic([self.state, self.actor(self.state)])
+        self.actor_train_fn = actor_optimizer.minimize(loss, var_list=self.actor.weights)
 
-        # We now have the gradients (`grads`) of the combined model wrt to the actor's weights and
-        # the output (`output`). Compute the necessary updates using a clone of the actor's optimizer.
-        clipnorm = getattr(actor_optimizer, 'clipnorm', 0.)
-        clipvalue = getattr(actor_optimizer, 'clipvalue', 0.)
-
-        def get_gradients(loss, params):
-            # We want to follow the gradient, but the optimizer goes in the opposite direction to
-            # minimize loss. Hence the double inversion.
-            assert len(grads) == len(params)
-            modified_grads = [-g for g in grads]
-            if clipnorm > 0.:
-                norm = K.sqrt(
-                    sum([K.sum(K.square(g)) for g in modified_grads]))
-                modified_grads = [
-                    optimizers.clip_norm(g, clipnorm, norm)
-                    for g in modified_grads
-                ]
-            if clipvalue > 0.:
-                modified_grads = [
-                    K.clip(g, -clipvalue, clipvalue) for g in modified_grads
-                ]
-            return modified_grads
-
-        actor_optimizer.get_gradients = get_gradients
-        updates = actor_optimizer.get_updates(self.actor.trainable_weights,
-                                              self.actor.constraints, None)
-        if self.target_actor_update < 1.:
-            # Include soft target model updates.
-            updates += get_soft_target_model_updates(
-                self.target_actor, self.actor, self.target_actor_update)
-        updates += self.actor.updates  # include other updates of the actor, e.g. for BN
-
-        # Finally, combine it all into a callable function.
-        inputs = self.actor.inputs[:] + critic_inputs
-        if self.uses_learning_phase:
-            inputs += [K.learning_phase()]
-
-        # Function to train the actor
-        self.actor_train_fn = K.function(
-            inputs, [self.actor.output], updates=updates)
-        self.actor_optimizer = actor_optimizer
+        self.session.run(tf.global_variables_initializer())
 
         self.compiled = True
 
@@ -412,21 +366,23 @@ class DDPGAgent(Agent):
         return (metrics)
 
     def build_critic_input(self, state, action):
+        # TODO: Find automatically the action's Position
+        # Hard-coded (in [1]) for now
         batch_state_action = [state, action]
         return(batch_state_action)
 
-    def fit_actor(self, batches):
+    def fit_actor(self, batch):
         """Fit the actor network"""
         # TODO: implement metrics for actor
-        if len(self.actor.inputs) >= 2:
-            inputs = batches.state_0[:] + batches.state_0[:]
 
-        else:
-            inputs = [batches.state_0, +batches.state_0]
+        inputs = [batch.state_0, +batch.state_0]
+
         if self.uses_learning_phase:
             inputs += [self.training]
-        action_values = self.actor_train_fn(inputs)[0]
-        assert action_values.shape == (self.batch_size, self.nb_actions)
+
+        self.session.run(self.actor_train_fn, feed_dict={self.state: batch.state_0, K.learning_phase(): 1})
+        # action_values = self.session.run(self.actor_train_fn(inputs)[0]
+        # assert action_values.shape == (self.batch_size, self.nb_actions)
 
     def get_batch(self):
         """
