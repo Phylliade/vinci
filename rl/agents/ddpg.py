@@ -28,7 +28,7 @@ class DDPGAgent(Agent):
     :param actions_high:
     :param actor:
     :param critic:
-    :param critic_action_input:
+    :param env:
     :param memory:
     :param gamma:
     :param batch_size:
@@ -49,7 +49,7 @@ class DDPGAgent(Agent):
                  actions_high,
                  actor,
                  critic,
-                 critic_action_input,
+                 env,
                  memory,
                  gamma=.99,
                  batch_size=32,
@@ -72,10 +72,6 @@ class DDPGAgent(Agent):
             raise ValueError(
                 'Critic "{}" has more than one output. DDPG expects a critic that has a single output.'.
                 format(critic))
-        if critic_action_input not in critic.input:
-            raise ValueError(
-                'Critic "{}" does not have designated action input "{}".'.
-                format(critic, critic_action_input))
         if not hasattr(critic.input, '__len__') or len(critic.input) < 2:
             raise ValueError(
                 'Critic "{}" does not have enough inputs. The critic must have at exactly two inputs, one for the action and one for the observation.'.
@@ -90,8 +86,8 @@ class DDPGAgent(Agent):
             delta_clip = delta_range[1]
 
         # Get placeholders
-        self.state = critic.inputs[0]
-        self.action = critic.inputs[1]
+        self.state = env.state
+        self.action = env.action
 
         # Parameters.
         self.nb_actions = nb_actions
@@ -114,9 +110,6 @@ class DDPGAgent(Agent):
         # Related objects.
         self.actor = actor
         self.critic = critic
-        self.critic_action_input = critic_action_input
-        self.critic_action_input_idx = self.critic.input.index(
-            critic_action_input)
         self.memory = memory
 
         # State.
@@ -193,6 +186,8 @@ class DDPGAgent(Agent):
         actor_optimizer = tf.train.AdamOptimizer()
         # Be careful to negate the gradient
         # Since the optimizer wants to minimize the value
+        # FIXME: Previous implementation used self.actor.ouput instead of self.actor(self.state)
+        # self.actor.output is not working in NB...
         loss = -K.mean(self.critic([self.state, self.actor(self.state)]))
         # TODO: Clip the policy gradient
 
