@@ -357,12 +357,10 @@ class DDPGAgent(Agent):
 
         # Get the target Q value
         # Q(s_t, \pi(s_t))
-        # state1_action_batch is (s_t, \pi(s_t))
-        # batch_state1_action1 = self.build_critic_input(batch.state_1,
-        #                                                target_actions)
         target_q_values = self.session.run(self.target_critic([self.state, self.action]), feed_dict={self.state: batch.state_1, self.action: target_actions}).flatten()
         # target_q_values = self.target_critic.predict_on_batch(
-        #     batch_state1_action1).flatten()
+        #     [self.state, self.action]).flatten()
+        # Also works
         assert target_q_values.shape == (self.batch_size, )
 
         # Compute the critic targets:
@@ -376,20 +374,12 @@ class DDPGAgent(Agent):
 
         # Perform a single batch update on the critic network.
         self.session.run(self.critic_train_fn, feed_dict={self.state: batch.state_0, self.action: batch.action, self.critic_target: critic_targets})
-        # metrics = self.critic.train_on_batch([batch.state_0, batch.action],
-        #                                      critic_targets)
 
         metrics = []
         if self.processor is not None:
             metrics += self.processor.metrics
 
         return (metrics)
-
-    def build_critic_input(self, state, action):
-        # TODO: Find automatically the action's Position
-        # Hard-coded (in [1]) for now
-        batch_state_action = [state, action]
-        return (batch_state_action)
 
     def fit_actor(self, batch, iterations=1):
         """Fit the actor network"""
