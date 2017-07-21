@@ -5,11 +5,10 @@ import warnings
 import numpy as np
 import tensorflow as tf
 import keras.backend as K
-import keras.optimizers as optimizers
 from collections import namedtuple
 
 from rl.core import Agent
-from rl.util import huber_loss, clone_model, get_soft_target_model_updates, clone_optimizer, AdditionalUpdatesOptimizer, get_soft_target_model_ops
+from rl.util import huber_loss, clone_model, get_soft_target_model_ops
 
 Batch = namedtuple("Batch", ("state_0", "action", "reward", "state_1",
                              "terminal_1"))
@@ -125,23 +124,11 @@ class DDPGAgent(Agent):
         del (self.memory)
         self.memory = memory
 
-    def compile(self, metrics=[]):
-        metrics += [mean_q]
+    def compile(self, metrics=None):
+        if metrics is None:
+            metrics = []
 
-        # if type(optimizer) in (list, tuple):
-        #     if len(optimizer) != 2:
-        #         raise ValueError(
-        #             'More than two optimizers provided. Please only provide a maximum of two optimizers, the first one for the actor and the second one for the critic.'
-        #         )
-        #     actor_optimizer, critic_optimizer = optimizer
-        # else:
-        #     actor_optimizer = optimizer
-        #     critic_optimizer = clone_optimizer(optimizer)
-        # if type(actor_optimizer) is str:
-        #     actor_optimizer = optimizers.get(actor_optimizer)
-        # if type(critic_optimizer) is str:
-        #     critic_optimizer = optimizers.get(critic_optimizer)
-        # assert actor_optimizer != critic_optimizer
+        metrics += [mean_q]
 
         if len(metrics) == 2 and hasattr(metrics[0], '__len__') and hasattr(
                 metrics[1], '__len__'):
@@ -167,18 +154,6 @@ class DDPGAgent(Agent):
 
         # FIXME: Remove critic_metrics
         self.critic.compile(optimizer='sgd', loss='mse', metrics=critic_metrics)
-
-        # Compile the critic.
-        # if self.target_critic_update < 1.:
-        #     # We use the `AdditionalUpdatesOptimizer` to efficiently soft-update the target model.
-        #     critic_updates = get_soft_target_model_updates(
-        #         self.target_critic, self.critic, self.target_critic_update)
-        #     critic_optimizer = AdditionalUpdatesOptimizer(
-        #         critic_optimizer, critic_updates)
-        # self.critic.compile(
-        #     optimizer=critic_optimizer,
-        #     loss=clipped_error,
-        #     metrics=critic_metrics)
 
         # Compile the critic optimizer
         critic_optimizer = tf.train.AdamOptimizer()
