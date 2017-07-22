@@ -66,3 +66,15 @@ actor.add(Activation("relu"))
 # Output layer
 actor.add(Dense(env.action_space_dim, activation="tanh"))
 ```
+
+## Efficiency of Keras models
+Internally, Keras models are used in a functional fashion:
+
+```
+out = keras_model(in)
+```
+
+Some may wonder about some potential leaks with this usage, and thery're right!
+With a traditional function, each time `keras_model(in)` is called, a new `Tensor` is created (and every underlying ops) and added to the Graph.
+
+But, Keras uses a cache for the computations, so each call to `keras_model(in)` always resulsts in the same variable.
