@@ -1,6 +1,5 @@
 from __future__ import division
 import os
-import warnings
 
 import numpy as np
 import tensorflow as tf
@@ -12,6 +11,10 @@ from rl.util import huber_loss, clone_model, get_soft_target_model_ops
 
 Batch = namedtuple("Batch", ("state_0", "action", "reward", "state_1",
                              "terminal_1"))
+
+
+# Whether to use Keras inference engine
+USE_KERAS_INFERENCE = False
 
 
 def mean_q(y_true, y_pred):
@@ -360,15 +363,20 @@ class DDPGAgent(Agent):
         """Fit the critic network"""
         # Get the target action
         # \pi(s_t)
-        # target_actions = self.target_actor.predict_on_batch(batch.state_1)
-        target_actions = self.session.run(self.target_actor(self.state), feed_dict={self.state: batch.state_1})
+        if USE_KERAS_INFERENCE:
+            target_actions = self.target_actor.predict_on_batch(batch.state_1)
+        else:
+            target_actions = self.session.run(self.target_actor(self.state), feed_dict={self.state: batch.state_1})
         assert target_actions.shape == (self.batch_size, self.nb_actions)
 
         # Get the target Q value
         # Q(s_t, \pi(s_t))
-        target_q_values = self.session.run(self.target_critic([self.state, self.action]), feed_dict={self.state: batch.state_1, self.action: target_actions}).flatten()
-        # target_q_values = self.target_critic.predict_on_batch(
-        #     [self.state, self.action]).flatten()
+        if USE_KERAS_INFERENCE:
+            target_q_values = self.target_critic.predict_on_batch(
+                [batch.state_1, target_actions]).flatten()
+        else:
+            target_q_values = self.session.run(self.target_critic([self.state, self.action]), feed_dict={self.state: batch.state_1, self.action: target_actions}).flatten()
+
         # Also works
         assert target_q_values.shape == (self.batch_size, )
 
