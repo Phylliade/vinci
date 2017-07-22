@@ -56,13 +56,15 @@ class DDPGAgent(Agent):
                  nb_steps_warmup_actor=1000,
                  train_interval=1,
                  memory_interval=1,
-                 delta_range=None,
                  delta_clip=np.inf,
                  random_process=None,
-                 custom_model_objects={},
+                 custom_model_objects=None,
                  target_critic_update=.001,
                  target_actor_update=1,
                  **kwargs):
+
+        if custom_model_objects is None:
+            custom_model_objects = {}
         if hasattr(actor.output, '__len__') and len(actor.output) > 1:
             raise ValueError(
                 'Actor "{}" has more than one output. DDPG expects an actor that has a single output.'.
@@ -77,12 +79,6 @@ class DDPGAgent(Agent):
                 format(critic))
 
         super(DDPGAgent, self).__init__(**kwargs)
-
-        if delta_range is not None:
-            warnings.warn(
-                '`delta_range` is deprecated. Please use `delta_clip` instead, which takes a single scalar. For now we\'re falling back to `delta_range[1] = {}`'.
-                format(delta_range[1]))
-            delta_clip = delta_range[1]
 
         # Get placeholders
         self.state = env.state
@@ -188,8 +184,21 @@ class DDPGAgent(Agent):
         self.actor_train_fn = actor_optimizer.minimize(
             loss, var_list=self.actor.trainable_weights)
 
-        # TODO: Use Keras backend
-        self.session.run(tf.global_variables_initializer())
+        # FIXME: Use directly Keras backend
+        # This is a kind of a hack
+        # Taken from the "initialize_variables" of the Keras Tensorflow backend
+        # https://github.com/fchollet/keras/blob/master/keras/backend/tensorflow_backend.py#L330
+        # It permits to only initialize variables that are not already initialized
+        # Without that, the networks and target networks get initialized again, to different values (stochastic initialization)
+        # This is a problem when a network and it's target network do not begin with the same parameter values...
+        variables = tf.global_variables()
+        uninitialized_variables = []
+        for v in variables:
+            if not hasattr(v, '_keras_initialized') or not v._keras_initialized:
+                uninitialized_variables.append(v)
+                v._keras_initialized = True
+        self.session.run(tf.variables_initializer(uninitialized_variables))
+        # self.session.run(tf.global_variables_initializer())
 
         self.compiled = True
 

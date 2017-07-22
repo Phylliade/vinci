@@ -5,7 +5,6 @@ from copy import deepcopy
 import numpy as np
 from keras.callbacks import History
 import keras.backend as K
-import tensorflow as tf
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 
