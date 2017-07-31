@@ -4,11 +4,11 @@ from copy import deepcopy
 
 import numpy as np
 from keras.callbacks import History
+import keras.backend as K
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 
 DEBUG = True
-
 
 STEPS_TERMINATION = 1
 EPISODES_TERMINATION = 2
@@ -44,6 +44,9 @@ class Agent(object):
             self.processor = Processor()
         self.training = False
         self.step = 0
+        # Use the same session as Keras
+        self.session = K.get_session()
+        # self.session = tf.Session()
 
     def get_config(self):
         """Configuration of the agent for serialization.
@@ -105,13 +108,17 @@ class Agent(object):
 
         # Process the different cases when either nb_steps or nb_episodes are specified
         if (nb_steps is None and nb_episodes is None):
-            raise(ValueError("Please specify one (and only one) of nb_steps and nb_episodes"))
-        elif(nb_steps is not None and nb_episodes is None):
+            raise (ValueError(
+                "Please specify one (and only one) of nb_steps and nb_episodes"
+            ))
+        elif (nb_steps is not None and nb_episodes is None):
             termination_criterion = STEPS_TERMINATION
-        elif(nb_steps is None and nb_episodes is not None):
+        elif (nb_steps is None and nb_episodes is not None):
             termination_criterion = EPISODES_TERMINATION
         elif (nb_steps is not None and nb_episodes is not None):
-            raise(ValueError("Please specify one (and only one) of nb_steps and nb_episodes"))
+            raise (ValueError(
+                "Please specify one (and only one) of nb_steps and nb_episodes"
+            ))
 
         self.training = training
 
@@ -175,9 +182,11 @@ class Agent(object):
         did_abort = False
 
         if termination_criterion == STEPS_TERMINATION:
+
             def termination():
                 return (self.step >= nb_steps)
         elif termination_criterion == EPISODES_TERMINATION:
+
             def termination():
                 return (episode >= nb_episodes)
 
@@ -193,13 +202,16 @@ class Agent(object):
                     # Obtain the initial observation by resetting the environment.
                     self.reset_states()
                     observation_0 = deepcopy(env.reset())
-                    observation_0 = self.processor.process_observation(observation_0)
+                    observation_0 = self.processor.process_observation(
+                        observation_0)
                     assert observation_0 is not None
 
                     # Perform random steps at beginning of episode and do not record them into the experience.
                     # This slightly changes the start position between games.
                     if nb_max_start_steps != 0:
-                        observation_0 = self._perform_random_steps(nb_max_start_steps, start_step_policy, env, observation_0, callbacks)
+                        observation_0 = self._perform_random_steps(
+                            nb_max_start_steps, start_step_policy, env,
+                            observation_0, callbacks)
 
                 else:
                     # We are in the middle of an episode
@@ -232,7 +244,8 @@ class Agent(object):
                     observation_1, r, done, info = env.step(action)
                     observation_1 = deepcopy(observation_1)
 
-                    observation_1, r, done, info = self.processor.process_step(observation_1, r, done, info)
+                    observation_1, r, done, info = self.processor.process_step(
+                        observation_1, r, done, info)
                     for key, value in info.items():
                         if not np.isreal(value):
                             continue
@@ -255,7 +268,12 @@ class Agent(object):
                 reward = reward * reward_scaling
 
                 # Use the step information to train the algorithm
-                metrics = self.backward(observation_0, action, reward, observation_1, terminal=done)
+                metrics = self.backward(
+                    observation_0,
+                    action,
+                    reward,
+                    observation_1,
+                    terminal=done)
 
                 # Collect statistics
                 episode_reward += reward
@@ -298,7 +316,8 @@ class Agent(object):
 
         return history
 
-    def _perform_random_steps(self, nb_max_start_steps, start_step_policy, env, observation, callbacks):
+    def _perform_random_steps(self, nb_max_start_steps, start_step_policy, env,
+                              observation, callbacks):
         nb_random_start_steps = np.random.randint(nb_max_start_steps)
         for _ in range(nb_random_start_steps):
             if start_step_policy is None:
@@ -310,7 +329,7 @@ class Agent(object):
             observation, reward, done, info = env.step(action)
             observation = deepcopy(observation)
             observation, reward, done, info = self.processor.process_step(
-                    observation, reward, done, info)
+                observation, reward, done, info)
             callbacks.on_action_end(action)
 
             if done:
@@ -320,12 +339,9 @@ class Agent(object):
                 observation = deepcopy(env.reset())
                 observation = self.processor.process_observation(observation)
                 break
-        return(observation)
+        return (observation)
 
-    def fit(self,
-            env,
-            nb_steps,
-            **kwargs):
+    def fit(self, env, nb_steps, **kwargs):
         """
         Train the agent on the given environment.
 
@@ -335,17 +351,15 @@ class Agent(object):
         # Returns
             A `keras.callbacks.History` instance that recorded the entire training process.
         """
-        return(self._run(env=env, nb_steps=nb_steps, training=True, **kwargs))
+        return (self._run(env=env, nb_steps=nb_steps, training=True, **kwargs))
 
-    def test(self,
-             env,
-             nb_episodes=1,
-             **kwargs):
+    def test(self, env, nb_episodes=1, **kwargs):
         """
         Test the agent on the given environment.
         In training mode, noise is removed.
         """
-        return(self._run(env=env, nb_episodes=nb_episodes, training=False, **kwargs))
+        return (self._run(
+            env=env, nb_episodes=nb_episodes, training=False, **kwargs))
 
     def reset_states(self):
         """Resets all internally kept states after an episode is completed.

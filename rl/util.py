@@ -1,8 +1,10 @@
 import numpy as np
 
-from keras.models import model_from_config, Sequential, Model, model_from_config
+from keras.models import model_from_config
 import keras.optimizers as optimizers
 import keras.backend as K
+# FIXME: Use only one of the two
+import tensorflow as tf
 
 
 def clone_model(model, custom_objects={}):
@@ -33,6 +35,14 @@ def clone_optimizer(optimizer):
     return clone
 
 
+def get_soft_target_model_ops(target_weights, source_weights, tau):
+    ops = []
+    for (target_weight, source_weight) in zip(target_weights, source_weights):
+        ops.append(tf.assign(target_weight, tau * target_weight + (1. - tau) * source_weight))
+
+    return(ops)
+
+
 def get_soft_target_model_updates(target, source, tau):
     target_weights = target.trainable_weights + sum([l.non_trainable_weights for l in target.layers], [])
     source_weights = source.trainable_weights + sum([l.non_trainable_weights for l in source.layers], [])
@@ -48,7 +58,7 @@ def get_soft_target_model_updates(target, source, tau):
 def get_object_config(o):
     if o is None:
         return None
-        
+
     config = {
         'class_name': o.__class__.__name__,
         'config': o.get_config()

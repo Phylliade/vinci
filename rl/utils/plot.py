@@ -32,7 +32,7 @@ def portrait_critic(critic, definition=100, plot=True, action=[-1]):
 
     for index_x, x in enumerate(x_axis):
         for index_v, v in enumerate(np.linspace(-max_speed, max_speed, num=definition)):
-            portrait[index_v, index_x] = critic.predict_on_batch([np.array(action), np.array([[x, v]])])
+            portrait[index_v, index_x] = critic.predict_on_batch([np.array([[x, v]]), np.array(action)])
     if plot:
         plt.figure(figsize=(10, 10))
         plt.imshow(portrait, cmap="inferno", extent=[pos_min, pos_max, -max_speed, max_speed], aspect='auto')
