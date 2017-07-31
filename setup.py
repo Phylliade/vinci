@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 
 setup(name='vinci',
-      version='0.3.1~dev',
+      version='1.0.0~dev',
       description='Deep Reinforcement Learning for Keras',
       author='Matthias Plappert, Pierre Manceron',
       url='https://github.com/phylliade/vinci',
