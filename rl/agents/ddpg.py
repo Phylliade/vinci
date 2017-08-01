@@ -125,18 +125,7 @@ class DDPGAgent(Agent):
         del (self.memory)
         self.memory = memory
 
-    def compile(self, metrics=None):
-        if metrics is None:
-            metrics = []
-
-        metrics += [mean_q]
-
-        if len(metrics) == 2 and hasattr(metrics[0], '__len__') and hasattr(
-                metrics[1], '__len__'):
-            _, critic_metrics = metrics
-        else:
-            critic_metrics = metrics
-
+    def compile(self):
         # def clipped_error(y_true, y_pred):
         # return K.mean(huber_loss(y_true, y_pred, self.delta_clip), axis=-1)
 
@@ -153,9 +142,7 @@ class DDPGAgent(Agent):
         # we also compile it with any optimizer and
         self.actor.compile(optimizer='sgd', loss='mse')
 
-        # FIXME: Remove critic_metrics
-        self.critic.compile(
-            optimizer='sgd', loss='mse', metrics=critic_metrics)
+        self.critic.compile(optimizer='sgd', loss='mse')
 
         # Compile the critic optimizer
         critic_optimizer = tf.train.AdamOptimizer()
@@ -252,8 +239,6 @@ class DDPGAgent(Agent):
     def update_target_actor_hard(self):
         self.target_actor.set_weights(self.actor.get_weights())
 
-    # TODO: implement pickle
-
     def reset_states(self):
         if self.random_process is not None:
             self.random_process.reset_states()
@@ -299,17 +284,6 @@ class DDPGAgent(Agent):
             action = self.processor.process_action(action)
 
         return (action)
-
-    @property
-    def layers(self):
-        return self.actor.layers[:] + self.critic.layers[:]
-
-    @property
-    def metrics_names(self):
-        names = self.critic.metrics_names[:]
-        if self.processor is not None:
-            names += self.processor.metrics_names[:]
-        return (names)
 
     def backward(
             self,
