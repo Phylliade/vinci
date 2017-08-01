@@ -8,6 +8,7 @@ from collections import namedtuple
 
 from rl.core import Agent
 from rl.util import huber_loss, clone_model, get_soft_target_model_ops
+from rl.utils.numerics import gradient_inverter
 
 Batch = namedtuple("Batch", ("state_0", "action", "reward", "state_1",
                              "terminal_1"))
@@ -63,6 +64,9 @@ class DDPGAgent(Agent):
                  custom_model_objects=None,
                  target_critic_update=.001,
                  target_actor_update=1,
+                 invert_gradients=True,
+                 gradient_inverter_min=-1.,
+                 gradient_inverter_max=1.,
                  **kwargs):
 
         if custom_model_objects is None:
@@ -103,6 +107,10 @@ class DDPGAgent(Agent):
         self.train_interval = train_interval
         self.memory_interval = memory_interval
         self.custom_model_objects = custom_model_objects
+        self.invert_gradients = invert_gradients
+        if invert_gradients:
+            self.gradient_inverter_max = gradient_inverter_max
+            self.gradient_inverter_min = gradient_inverter_min
 
         # Related objects.
         self.actor = actor
@@ -139,9 +147,10 @@ class DDPGAgent(Agent):
 
         # We also compile the actor. We never optimize the actor using Keras but instead compute
         # the policy gradient ourselves. However, we need the actor in feed-forward mode, hence
-        # we also compile it with any optimizer and
+        # we also compile it with any optimizer
         self.actor.compile(optimizer='sgd', loss='mse')
 
+        # Compile the critic for the same reason
         self.critic.compile(optimizer='sgd', loss='mse')
 
         # Compile the critic optimizer
@@ -180,7 +189,11 @@ class DDPGAgent(Agent):
         actor_loss = -K.mean(self.critic([self.state, self.actor(self.state)]))
 
         actor_gradient_vars = actor_optimizer.compute_gradients(actor_loss, var_list=self.actor.trainable_weights)
-        # TODO: Clip the policy gradient using grad inverting
+        # Gradient inverting
+        # as described in https://arxiv.org/abs/1511.04143
+        if self.invert_gradients:
+            actor_gradient_vars = [(gradient_inverter(x[0], self.gradient_inverter_min, self.gradient_inverter_max), x[1]) for x in actor_gradient_vars]
+
         actor_gradient_norm = tf.reduce_sum([tf.norm(grad_var[0]) for grad_var in actor_gradient_vars])
 
         self.actor_train_fn = actor_optimizer.apply_gradients(actor_gradient_vars)
