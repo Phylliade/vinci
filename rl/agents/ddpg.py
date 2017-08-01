@@ -160,13 +160,17 @@ class DDPGAgent(Agent):
         # Compile the critic optimizer
         critic_optimizer = tf.train.AdamOptimizer()
         self.critic_target = tf.placeholder(dtype=tf.float32, shape=(None, 1))
+        # Clip the critic gradient using the huber loss
         critic_loss = K.mean(
             huber_loss(
                 self.critic([self.state, self.action]), self.critic_target,
                 self.delta_clip))
-        print(critic_loss.shape)
-        self.critic_train_fn = critic_optimizer.minimize(
+        critic_gradient_vars = critic_optimizer.compute_gradients(
             critic_loss, var_list=self.critic.trainable_weights)
+
+        critic_gradient_norm = tf.reduce_sum([tf.norm(grad_var[0]) for grad_var in critic_gradient_vars])
+
+        self.critic_train_fn = critic_optimizer.apply_gradients(critic_gradient_vars)
 
         # Target critic optimizer
         if self.target_critic_update < 1.:
@@ -187,15 +191,19 @@ class DDPGAgent(Agent):
         # Be careful to negate the gradient
         # Since the optimizer wants to minimize the value
         actor_loss = -K.mean(self.critic([self.state, self.actor(self.state)]))
-        # TODO: Clip the policy gradient using grad inverting
 
-        self.actor_train_fn = actor_optimizer.minimize(
-            actor_loss, var_list=self.actor.trainable_weights)
+        actor_gradient_vars = actor_optimizer.compute_gradients(actor_loss, var_list=self.actor.trainable_weights)
+        # TODO: Clip the policy gradient using grad inverting
+        actor_gradient_norm = tf.reduce_sum([tf.norm(grad_var[0]) for grad_var in actor_gradient_vars])
+
+        self.actor_train_fn = actor_optimizer.apply_gradients(actor_gradient_vars)
 
         # Collect metrics
-        self.critic_summary_loss = tf.summary.scalar("critic_loss",
-                                                     critic_loss)
-        self.actor_summary_loss = tf.summary.scalar("actor_loss", actor_loss)
+        self.critic_summary_loss = tf.summary.scalar("critic_loss", critic_loss)
+        self.critic_summary_gradient_norm = tf.summary.scalar("critic_gradient", critic_gradient_norm)
+
+        self.actor_summary_loss = tf.summary.scalar("actor_loss", -actor_loss)
+        self.actor_summary_gradient_norm = tf.summary.scalar("actor_gradient", actor_gradient_norm)
 
         # FIXME: Use directly Keras backend
         # This is a kind of a hack
@@ -378,11 +386,11 @@ class DDPGAgent(Agent):
             metrics = []
             if fit_critic:
                 metrics_critic = self.fit_critic(batch)
-                # metrics.append(metrics_critic)
+                metrics += metrics_critic
 
             if fit_actor:
                 metrics_actor = self.fit_actor(batch)
-                # metrics.append(metrics_actor)
+                metrics += metrics_actor
 
             # Hard update target networks, only if necessary
             if self.target_actor_update >= 1:
@@ -398,8 +406,9 @@ class DDPGAgent(Agent):
                 self.session.run(self.target_critic_train_fn)
 
             # self.summary_writer.add_summary(metrics, epoch)
-            self.summary_writer.add_summary(metrics_actor, epoch)
-            self.summary_writer.add_summary(metrics_critic, epoch)
+            for metric in metrics:
+                # FIXME: Use only one summary
+                self.summary_writer.add_summary(metric, epoch)
 
             return (metrics)
 
@@ -443,8 +452,8 @@ class DDPGAgent(Agent):
         # Perform a single batch update on the critic network.
         for _ in range(sgd_iterations):
             # FIXME: metrics collection won't work with more than one iteration
-            _, metrics = self.session.run(
-                [self.critic_train_fn, self.critic_summary_loss],
+            _, loss, gradient_norm = self.session.run(
+                [self.critic_train_fn, self.critic_summary_loss, self.critic_summary_gradient_norm],
                 feed_dict={
                     self.state: batch.state_0,
                     self.action: batch.action,
@@ -455,7 +464,9 @@ class DDPGAgent(Agent):
         # if self.processor is not None:
         #     metrics += self.processor.metrics
 
-        return (metrics)
+        metrics = [loss, gradient_norm]
+
+        return(metrics)
 
     def fit_actor(self, batch, sgd_iterations=1):
         """Fit the actor network"""
@@ -468,12 +479,14 @@ class DDPGAgent(Agent):
 
         for _ in range(sgd_iterations):
             # FIXME: metrics collection won't work with more than one iteration
-            _, metrics = self.session.run(
-                [self.actor_train_fn, self.actor_summary_loss],
+            _, loss, gradient_norm = self.session.run(
+                [self.actor_train_fn, self.actor_summary_loss, self.actor_summary_gradient_norm],
                 feed_dict={self.state: batch.state_0,
                            K.learning_phase(): 1})
 
-        return (metrics)
+        metrics = [loss, gradient_norm]
+
+        return(metrics)
 
     def get_batch(self):
         """
