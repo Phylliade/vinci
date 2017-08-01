@@ -311,7 +311,8 @@ class DDPGAgent(Agent):
             observation_1,
             terminal=False,
             fit_actor=True,
-            fit_critic=True, ):
+            fit_critic=True,
+            epoch=1):
         metrics = [np.nan for _ in self.metrics_names]
 
         # Stop here if not training
@@ -340,7 +341,8 @@ class DDPGAgent(Agent):
                     fit_critic=fit_critic,
                     fit_actor=fit_actor,
                     hard_update_target_critic=hard_update_target_critic,
-                    hard_update_target_actor=hard_update_target_actor)
+                    hard_update_target_actor=hard_update_target_actor,
+                    epoch=epoch)
 
         return metrics
 

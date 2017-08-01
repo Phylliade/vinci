@@ -157,6 +157,7 @@ class Agent(object):
         elif termination_criterion == EPISODES_TERMINATION:
             params = {
                 'nb_episodes': nb_episodes,
+                'nb_steps': 1,
             }
         if hasattr(callbacks, 'set_params'):
             callbacks.set_params(params)
@@ -273,7 +274,8 @@ class Agent(object):
                     action,
                     reward,
                     observation_1,
-                    terminal=done)
+                    terminal=done,
+                    epoch=self.step)
 
                 # Collect statistics
                 episode_reward += reward
@@ -341,29 +343,29 @@ class Agent(object):
                 break
         return (observation)
 
-    def fit(self, env, nb_steps, **kwargs):
+    def fit(self, **kwargs):
         """
         Train the agent on the given environment.
 
         # Arguments
             env: (`Env` instance): Environment that the agent interacts with. See [Env](#env) for details.
             nb_steps (integer): Number of training steps to be performed.
+            or nb_episodes
         # Returns
             A `keras.callbacks.History` instance that recorded the entire training process.
         """
-        return (self._run(env=env, nb_steps=nb_steps, training=True, **kwargs))
+        return(self._run(training=True, **kwargs))
 
     def fit_offline(self):
         """Train the networks in offline mode"""
-        raise(NotImplementedError)
+        raise (NotImplementedError)
 
-    def test(self, env, nb_episodes=1, **kwargs):
+    def test(self, **kwargs):
         """
         Test the agent on the given environment.
         In training mode, noise is removed.
         """
-        return (self._run(
-            env=env, nb_episodes=nb_episodes, training=False, **kwargs))
+        return(self._run(training=False, **kwargs))
 
     def reset_states(self):
         """Resets all internally kept states after an episode is completed.
