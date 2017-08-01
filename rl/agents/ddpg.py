@@ -12,7 +12,6 @@ from rl.util import huber_loss, clone_model, get_soft_target_model_ops
 Batch = namedtuple("Batch", ("state_0", "action", "reward", "state_1",
                              "terminal_1"))
 
-
 # Whether to use Keras inference engine
 USE_KERAS_INFERENCE = False
 
@@ -139,7 +138,7 @@ class DDPGAgent(Agent):
             critic_metrics = metrics
 
         # def clipped_error(y_true, y_pred):
-            # return K.mean(huber_loss(y_true, y_pred, self.delta_clip), axis=-1)
+        # return K.mean(huber_loss(y_true, y_pred, self.delta_clip), axis=-1)
 
         # Compile target networks. We only use them in feed-forward mode, hence we can pass any
         # optimizer and loss since we never use it anyway.
@@ -155,12 +154,16 @@ class DDPGAgent(Agent):
         self.actor.compile(optimizer='sgd', loss='mse')
 
         # FIXME: Remove critic_metrics
-        self.critic.compile(optimizer='sgd', loss='mse', metrics=critic_metrics)
+        self.critic.compile(
+            optimizer='sgd', loss='mse', metrics=critic_metrics)
 
         # Compile the critic optimizer
         critic_optimizer = tf.train.AdamOptimizer()
         self.critic_target = tf.placeholder(dtype=tf.float32, shape=(None, 1))
-        critic_loss = K.mean(huber_loss(self.critic([self.state, self.action]), self.critic_target, self.delta_clip)  )
+        critic_loss = K.mean(
+            huber_loss(
+                self.critic([self.state, self.action]), self.critic_target,
+                self.delta_clip))
         print(critic_loss.shape)
         self.critic_train_fn = critic_optimizer.minimize(
             critic_loss, var_list=self.critic.trainable_weights)
@@ -190,7 +193,8 @@ class DDPGAgent(Agent):
             actor_loss, var_list=self.actor.trainable_weights)
 
         # Collect metrics
-        self.critic_summary_loss = tf.summary.scalar("critic_loss", critic_loss)
+        self.critic_summary_loss = tf.summary.scalar("critic_loss",
+                                                     critic_loss)
         self.actor_summary_loss = tf.summary.scalar("actor_loss", actor_loss)
 
         # FIXME: Use directly Keras backend
@@ -203,7 +207,8 @@ class DDPGAgent(Agent):
         variables = tf.global_variables()
         uninitialized_variables = []
         for v in variables:
-            if not hasattr(v, '_keras_initialized') or not v._keras_initialized:
+            if not hasattr(v,
+                           '_keras_initialized') or not v._keras_initialized:
                 uninitialized_variables.append(v)
                 v._keras_initialized = True
         self.session.run(tf.variables_initializer(uninitialized_variables))
@@ -262,7 +267,8 @@ class DDPGAgent(Agent):
         batch_state = self.process_state_batch([state])
         # We get a batch of 1 action
         # action = self.actor.predict_on_batch(batch_state)[0]
-        action = self.session.run(self.actor(self.state), feed_dict={self.state: batch_state})[0]
+        action = self.session.run(
+            self.actor(self.state), feed_dict={self.state: batch_state})[0]
         assert action.shape == (self.nb_actions, )
 
         # Apply noise, if a random process is set.
@@ -297,15 +303,15 @@ class DDPGAgent(Agent):
             names += self.processor.metrics_names[:]
         return (names)
 
-    def backward(self,
-                 observation_0,
-                 action,
-                 reward,
-                 observation_1,
-                 terminal=False,
-                 fit_actor=True,
-                 fit_critic=True,
-                 ):
+    def backward(
+            self,
+            observation_0,
+            action,
+            reward,
+            observation_1,
+            terminal=False,
+            fit_actor=True,
+            fit_critic=True, ):
         metrics = [np.nan for _ in self.metrics_names]
 
         # Stop here if not training
@@ -320,7 +326,8 @@ class DDPGAgent(Agent):
         # Train the network on a single stochastic batch.
         if self.step % self.train_interval == 0:
             # Update critic, if warm up is over.
-            fit_critic = (fit_critic and self.step > self.nb_steps_warmup_critic)
+            fit_critic = (fit_critic and
+                          self.step > self.nb_steps_warmup_critic)
             # Update critic, if warm up is over.
             fit_actor = (fit_actor and self.step > self.nb_steps_warmup_actor)
 
@@ -337,17 +344,35 @@ class DDPGAgent(Agent):
 
         return metrics
 
+    def fit_offline(self,
+                    fit_critic=True,
+                    fit_actor=True,
+                    hard_update_target_critic=False,
+                    hard_update_target_actor=False,
+                    epochs=1):
+        for epoch in range(epochs):
+            # TODO: Implement callback support
+            print("Training epoch {}".format(epoch))
+            self.fit_nets(
+                fit_critic=fit_critic,
+                fit_actor=fit_actor,
+                hard_update_target_critic=hard_update_target_critic,
+                hard_update_target_actor=hard_update_target_actor)
+
     def fit_nets(self,
                  fit_critic=True,
                  fit_actor=True,
                  hard_update_target_critic=False,
                  hard_update_target_actor=False,
-                 epochs=1):
+                 epoch=1):
         """Fit the actor and critic networks"""
         # TODO: Export metrics to tensorboard
-        batch = self.get_batch()
 
-        for epoch in range(epochs):
+        if not (fit_actor or fit_critic):
+            return (None)
+        else:
+            batch = self.get_batch()
+
             metrics = []
             if fit_critic:
                 metrics_critic = self.fit_critic(batch)
@@ -374,7 +399,7 @@ class DDPGAgent(Agent):
             self.summary_writer.add_summary(metrics_actor, epoch)
             self.summary_writer.add_summary(metrics_critic, epoch)
 
-        return(metrics)
+            return (metrics)
 
     def fit_critic(self, batch, sgd_iterations=1):
         """Fit the critic network"""
@@ -383,7 +408,9 @@ class DDPGAgent(Agent):
         if USE_KERAS_INFERENCE:
             target_actions = self.target_actor.predict_on_batch(batch.state_1)
         else:
-            target_actions = self.session.run(self.target_actor(self.state), feed_dict={self.state: batch.state_1})
+            target_actions = self.session.run(
+                self.target_actor(self.state),
+                feed_dict={self.state: batch.state_1})
         assert target_actions.shape == (self.batch_size, self.nb_actions)
 
         # Get the target Q value
@@ -392,7 +419,12 @@ class DDPGAgent(Agent):
             target_q_values = self.target_critic.predict_on_batch(
                 [batch.state_1, target_actions]).flatten()
         else:
-            target_q_values = self.session.run(self.target_critic([self.state, self.action]), feed_dict={self.state: batch.state_1, self.action: target_actions}).flatten()
+            target_q_values = self.session.run(
+                self.target_critic([self.state, self.action]),
+                feed_dict={
+                    self.state: batch.state_1,
+                    self.action: target_actions
+                }).flatten()
 
         # Also works
         assert target_q_values.shape == (self.batch_size, )
@@ -409,13 +441,19 @@ class DDPGAgent(Agent):
         # Perform a single batch update on the critic network.
         for _ in range(sgd_iterations):
             # FIXME: metrics collection won't work with more than one iteration
-            _, metrics = self.session.run([self.critic_train_fn, self.critic_summary_loss], feed_dict={self.state: batch.state_0, self.action: batch.action, self.critic_target: critic_targets})
+            _, metrics = self.session.run(
+                [self.critic_train_fn, self.critic_summary_loss],
+                feed_dict={
+                    self.state: batch.state_0,
+                    self.action: batch.action,
+                    self.critic_target: critic_targets
+                })
 
         # FIXME: Remove this
         # if self.processor is not None:
         #     metrics += self.processor.metrics
 
-        return(metrics)
+        return (metrics)
 
     def fit_actor(self, batch, sgd_iterations=1):
         """Fit the actor network"""
@@ -433,7 +471,7 @@ class DDPGAgent(Agent):
                 feed_dict={self.state: batch.state_0,
                            K.learning_phase(): 1})
 
-        return(metrics)
+        return (metrics)
 
     def get_batch(self):
         """

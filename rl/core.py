@@ -353,6 +353,10 @@ class Agent(object):
         """
         return (self._run(env=env, nb_steps=nb_steps, training=True, **kwargs))
 
+    def fit_offline(self):
+        """Train the networks in offline mode"""
+        raise(NotImplementedError)
+
     def test(self, env, nb_episodes=1, **kwargs):
         """
         Test the agent on the given environment.
