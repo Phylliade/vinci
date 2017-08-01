@@ -320,8 +320,7 @@ class DDPGAgent(Agent):
         # Train the network on a single stochastic batch.
         if self.step % self.train_interval == 0:
             # Update critic, if warm up is over.
-            fit_critic = (fit_critic and
-                          self.step > self.nb_steps_warmup_critic)
+            fit_critic = (fit_critic and self.step > self.nb_steps_warmup_critic)
             # Update critic, if warm up is over.
             fit_actor = (fit_actor and self.step > self.nb_steps_warmup_actor)
 
@@ -329,11 +328,12 @@ class DDPGAgent(Agent):
             hard_update_target_actor = self.step % self.target_actor_update == 0
             hard_update_target_critic = self.step % self.target_critic_update == 0
 
-            metrics = self.fit_nets(
-                fit_critic=fit_critic,
-                fit_actor=fit_actor,
-                hard_update_target_critic=hard_update_target_critic,
-                hard_update_target_actor=hard_update_target_actor)
+            if (fit_actor or fit_critic):
+                self.fit_nets(
+                    fit_critic=fit_critic,
+                    fit_actor=fit_actor,
+                    hard_update_target_critic=hard_update_target_critic,
+                    hard_update_target_actor=hard_update_target_actor)
 
         return metrics
 
@@ -351,11 +351,11 @@ class DDPGAgent(Agent):
             metrics = []
             if fit_critic:
                 metrics_critic = self.fit_critic(batch)
-                metrics.append(metrics_critic)
+                # metrics.append(metrics_critic)
 
             if fit_actor:
                 metrics_actor = self.fit_actor(batch)
-                metrics.append(metrics_actor)
+                # metrics.append(metrics_actor)
 
             # Hard update target networks, only if necessary
             if self.target_actor_update >= 1:

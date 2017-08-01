@@ -86,10 +86,13 @@ class SimpleMemory(object):
         return ([self.buffer[idx] for idx in idxs])
 
     def sample(self, batch_size, batch_idxs=None):
+        available_samples = len(self)
+        if batch_size > available_samples:
+            raise(IndexError("Not enough elements in the memory (currently {}) to sample a batch of size {}".format(len(self), batch_size)))
         if batch_idxs is None:
             # Draw random indexes such that we have at least a single entry before each
             # index.
-            batch_idxs = sample_batch_indexes(0, self.entries_count - 1, size=batch_size)
+            batch_idxs = sample_batch_indexes(0, available_samples - 1, size=batch_size)
         batch_idxs = np.array(batch_idxs) + 1
 
         return (self.get_idxs(batch_idxs))
@@ -116,9 +119,8 @@ class SimpleMemory(object):
         with open(file, "wb") as fd:
             pickle.dump(self.buffer, fd)
 
-    @property
-    def entries_count(self):
-        return len(self.buffer)
+    def __len__(self):
+        return(len(self.buffer))
 
 
 class Memory(object):
