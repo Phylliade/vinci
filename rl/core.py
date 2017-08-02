@@ -5,6 +5,7 @@ from copy import deepcopy
 import numpy as np
 from keras.callbacks import History
 import keras.backend as K
+import tensorflow as tf
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 
@@ -47,6 +48,9 @@ class Agent(object):
         # Use the same session as Keras
         self.session = K.get_session()
         # self.session = tf.Session()
+
+        # To move to callback
+        self.summary_writer = tf.summary.FileWriter('./logs')
 
     def get_config(self):
         """Configuration of the agent for serialization.
@@ -185,20 +189,21 @@ class Agent(object):
         if termination_criterion == STEPS_TERMINATION:
 
             def termination():
-                return (self.step >= nb_steps)
+                return (self.step > nb_steps)
         elif termination_criterion == EPISODES_TERMINATION:
 
             def termination():
-                return (episode >= nb_episodes)
+                return (episode > nb_episodes)
 
         try:
             # Run steps (and episodes) until the termination criterion is met
             while not (termination()):
                 # If we are at the beginning of a new episode, execute a startup sequence
                 if observation_1 is None:
-                    callbacks.on_episode_begin(episode)
-                    episode_step = 0
+                    episode_step = 1
                     episode_reward = 0.
+                    episode += 1
+                    callbacks.on_episode_begin(episode)
 
                     # Obtain the initial observation by resetting the environment.
                     self.reset_states()
@@ -218,6 +223,11 @@ class Agent(object):
                     # We are in the middle of an episode
                     # Update the observation
                     observation_0 = observation_1
+                    # Increment the episode step
+                    episode_step += 1
+
+                # Increment the current step in both cases
+                self.step += 1
 
                 # At this point, we expect to be fully initialized.
                 assert episode_reward is not None
@@ -261,7 +271,7 @@ class Agent(object):
                         break
 
                 # Stop episode if reached the step limit
-                if nb_max_episode_steps and episode_step >= nb_max_episode_steps - 1:
+                if nb_max_episode_steps and episode_step >= nb_max_episode_steps:
                     # Force a terminal state.
                     done = True
 
@@ -269,7 +279,7 @@ class Agent(object):
                 reward = reward * reward_scaling
 
                 # Use the step information to train the algorithm
-                metrics = self.backward(
+                metrics, summaries = self.backward(
                     observation_0,
                     action,
                     reward,
@@ -287,9 +297,11 @@ class Agent(object):
                     'episode': episode,
                     'info': accumulated_info,
                 }
+
+                for summary in summaries:
+                    # FIXME: Use only one summary
+                    self.summary_writer.add_summary(summary, self.step)
                 callbacks.on_step_end(episode_step, step_logs)
-                episode_step += 1
-                self.step += 1
 
                 # Close the episode and reset the variables
                 if done:
@@ -300,10 +312,11 @@ class Agent(object):
                         'nb_steps': np.float_(self.step),
                     }
                     callbacks.on_episode_end(episode, logs=episode_logs)
-
+                    episode_summary = summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=episode_reward), ])
+                    self.summary_writer.add_summary(episode_summary, episode)
                     # Reset the episode variables
-                    episode += 1
                     observation_1 = None
+                    # For safety
                     episode_step = None
                     episode_reward = None
 
