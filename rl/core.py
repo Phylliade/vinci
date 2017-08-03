@@ -8,6 +8,7 @@ import keras.backend as K
 import tensorflow as tf
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
+from rl.hooks import PortraitHook
 
 DEBUG = True
 
@@ -51,6 +52,9 @@ class Agent(object):
 
         # To move to callback
         self.summary_writer = tf.summary.FileWriter('./logs')
+
+        # Hooks
+        self.hooks = [PortraitHook(self)]
 
     def get_config(self):
         """Configuration of the agent for serialization.
@@ -176,7 +180,7 @@ class Agent(object):
         callbacks.on_train_begin()
 
         # Setup
-        episode = 0
+        self.episode = 0
         self.step = 0
         # Where observation_0: Observation before the step
         # observation_1: Observation after the step
@@ -193,7 +197,7 @@ class Agent(object):
         elif termination_criterion == EPISODES_TERMINATION:
 
             def termination():
-                return (episode > nb_episodes)
+                return (self.episode > nb_episodes)
 
         try:
             # Run steps (and episodes) until the termination criterion is met
@@ -202,8 +206,8 @@ class Agent(object):
                 if observation_1 is None:
                     episode_step = 1
                     episode_reward = 0.
-                    episode += 1
-                    callbacks.on_episode_begin(episode)
+                    self.episode += 1
+                    callbacks.on_episode_begin(self.episode)
 
                     # Obtain the initial observation by resetting the environment.
                     self.reset_states()
@@ -294,7 +298,7 @@ class Agent(object):
                     'observation': observation_1,
                     'reward': reward,
                     'metrics': metrics,
-                    'episode': episode,
+                    'episode': self.episode,
                     'info': accumulated_info,
                 }
 
@@ -311,9 +315,11 @@ class Agent(object):
                         'nb_episode_steps': np.float_(episode_step),
                         'nb_steps': np.float_(self.step),
                     }
-                    callbacks.on_episode_end(episode, logs=episode_logs)
+                    callbacks.on_episode_end(self.episode, logs=episode_logs)
+                    for hook in self.hooks:
+                        hook()
                     episode_summary = summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=episode_reward), ])
-                    self.summary_writer.add_summary(episode_summary, episode)
+                    self.summary_writer.add_summary(episode_summary, self.episode)
                     # Reset the episode variables
                     observation_1 = None
                     # For safety
