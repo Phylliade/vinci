@@ -5,10 +5,9 @@ from copy import deepcopy
 import numpy as np
 from keras.callbacks import History
 import keras.backend as K
-import tensorflow as tf
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
-from rl.hooks import PortraitHook
+from rl.hooks import PortraitHook, TensorboardHook
 
 DEBUG = True
 
@@ -50,11 +49,8 @@ class Agent(object):
         self.session = K.get_session()
         # self.session = tf.Session()
 
-        # To move to callback
-        self.summary_writer = tf.summary.FileWriter('./logs')
-
         # Hooks
-        self.hooks = [PortraitHook(self)]
+        self.hooks = [PortraitHook(self), TensorboardHook(self)]
 
     def get_config(self):
         """Configuration of the agent for serialization.
@@ -186,9 +182,10 @@ class Agent(object):
         # observation_1: Observation after the step
         observation_0 = None
         observation_1 = None
-        episode_reward = None
+        self.episode_reward = None
         episode_step = None
         did_abort = False
+        self.step_summaries = None
 
         if termination_criterion == STEPS_TERMINATION:
 
@@ -205,7 +202,7 @@ class Agent(object):
                 # If we are at the beginning of a new episode, execute a startup sequence
                 if observation_1 is None:
                     episode_step = 1
-                    episode_reward = 0.
+                    self.episode_reward = 0.
                     self.episode += 1
                     callbacks.on_episode_begin(self.episode)
 
@@ -234,7 +231,7 @@ class Agent(object):
                 self.step += 1
 
                 # At this point, we expect to be fully initialized.
-                assert episode_reward is not None
+                assert self.episode_reward is not None
                 assert episode_step is not None
                 assert observation_0 is not None
 
@@ -252,15 +249,15 @@ class Agent(object):
                 # action -- (step) --> (reward, state_1, terminal)
                 reward = 0.
                 accumulated_info = {}
-                done = False
+                self.done = False
 
                 for _ in range(action_repetition):
                     callbacks.on_action_begin(action)
-                    observation_1, r, done, info = env.step(action)
+                    observation_1, r, self.done, info = env.step(action)
                     observation_1 = deepcopy(observation_1)
 
-                    observation_1, r, done, info = self.processor.process_step(
-                        observation_1, r, done, info)
+                    observation_1, r, self.done, info = self.processor.process_step(
+                        observation_1, r, self.done, info)
                     for key, value in info.items():
                         if not np.isreal(value):
                             continue
@@ -271,28 +268,28 @@ class Agent(object):
 
                     reward += r
 
-                    if done:
+                    if self.done:
                         break
 
                 # Stop episode if reached the step limit
                 if nb_max_episode_steps and episode_step >= nb_max_episode_steps:
                     # Force a terminal state.
-                    done = True
+                    self.done = True
 
                 # Scale the reward
                 reward = reward * reward_scaling
 
                 # Use the step information to train the algorithm
-                metrics, summaries = self.backward(
+                metrics, self.step_summaries = self.backward(
                     observation_0,
                     action,
                     reward,
                     observation_1,
-                    terminal=done,
+                    terminal=self.done,
                     epoch=self.step)
 
                 # Collect statistics
-                episode_reward += reward
+                self.episode_reward += reward
                 step_logs = {
                     'action': action,
                     'observation': observation_1,
@@ -302,29 +299,27 @@ class Agent(object):
                     'info': accumulated_info,
                 }
 
-                for summary in summaries:
-                    # FIXME: Use only one summary
-                    self.summary_writer.add_summary(summary, self.step)
                 callbacks.on_step_end(episode_step, step_logs)
 
-                # Close the episode and reset the variables
-                if done:
+                # Call the hooks
+                for hook in self.hooks:
+                    hook()
+
+                # Close the episode by resetting the variables
+                if self.done:
                     # This episode is finished, report and reset.
                     episode_logs = {
-                        'episode_reward': np.float_(episode_reward),
+                        'episode_reward': np.float_(self.episode_reward),
                         'nb_episode_steps': np.float_(episode_step),
                         'nb_steps': np.float_(self.step),
                     }
                     callbacks.on_episode_end(self.episode, logs=episode_logs)
-                    for hook in self.hooks:
-                        hook()
-                    episode_summary = summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=episode_reward), ])
-                    self.summary_writer.add_summary(episode_summary, self.episode)
+
                     # Reset the episode variables
                     observation_1 = None
                     # For safety
                     episode_step = None
-                    episode_reward = None
+                    self.episode_reward = None
 
         except KeyboardInterrupt:
             # We catch keyboard interrupts here so that training can be be safely aborted.

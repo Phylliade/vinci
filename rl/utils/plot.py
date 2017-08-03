@@ -22,6 +22,7 @@ def portrait_actor(actor, definition=50, plot=True, save_figure=False, figure_fi
         plt.xlabel("Position")
         plt.ylabel("Velocity")
         if save_figure:
+            # TODO: Create the directory if it doesn't exist
             plt.savefig(figure_file)
             plt.close()
 
@@ -45,5 +46,6 @@ def portrait_critic(critic, definition=50, plot=True, action=[-1], save_file="cr
         plt.xlabel("Position")
         plt.ylabel("Velocity")
         if save_figure:
+            # TODO: Create the directory if it doesn't exist
             plt.savefig(figure_file)
             plt.close()
