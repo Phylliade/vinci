@@ -370,8 +370,7 @@ class DDPGAgent(Agent):
                     fit_critic=fit_critic,
                     fit_actor=fit_actor,
                     hard_update_target_critic=hard_update_target_critic,
-                    hard_update_target_actor=hard_update_target_actor,
-                    epoch=epoch)
+                    hard_update_target_actor=hard_update_target_actor)
 
         return((metrics, summaries))
 
@@ -394,8 +393,7 @@ class DDPGAgent(Agent):
                  fit_critic=True,
                  fit_actor=True,
                  hard_update_target_critic=False,
-                 hard_update_target_actor=False,
-                 epoch=1):
+                 hard_update_target_actor=False):
         """Fit the actor and critic networks"""
         # TODO: Export metrics to tensorboard
 

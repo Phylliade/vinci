@@ -50,7 +50,8 @@ class Agent(object):
         # self.session = tf.Session()
 
         # Hooks
-        self.hooks = [PortraitHook(self), TensorboardHook(self)]
+        # self.hooks = [PortraitHook(self), TensorboardHook(self)]
+        self.hooks = []
 
     def get_config(self):
         """Configuration of the agent for serialization.
@@ -129,9 +130,9 @@ class Agent(object):
         if DEBUG:
             print("Training mode:".format(self.training))
 
-        # Initilize callbacks
-        callbacks = [] if not callbacks else callbacks[:]
-
+        # Initialize callbacks
+        if callbacks is None:
+            callbacks = []
         if self.training:
             if verbose == 1:
                 callbacks += [TrainIntervalLogger(interval=log_interval)]
@@ -140,20 +141,18 @@ class Agent(object):
         else:
             if verbose >= 1:
                 callbacks += [TestLogger()]
-
+        callbacks = [] if not callbacks else callbacks[:]
         if visualize:
             callbacks += [Visualizer()]
         history = History()
         callbacks += [history]
-
         callbacks = CallbackList(callbacks)
-
         if hasattr(callbacks, 'set_model'):
             callbacks.set_model(self)
         else:
             callbacks._set_model(self)
-
         callbacks._set_env(env)
+
         if termination_criterion == STEPS_TERMINATION:
             params = {
                 'nb_steps': nb_steps,
@@ -178,39 +177,37 @@ class Agent(object):
         # Setup
         self.episode = 0
         self.step = 0
+        self.done = True
+        did_abort = False
+        # Define these for clarification, not mandatory:
         # Where observation_0: Observation before the step
         # observation_1: Observation after the step
         observation_0 = None
         observation_1 = None
-        self.episode_reward = None
-        episode_step = None
-        did_abort = False
         self.step_summaries = None
 
+        # Define the termination criterion
         if termination_criterion == STEPS_TERMINATION:
-
             def termination():
                 return (self.step > nb_steps)
         elif termination_criterion == EPISODES_TERMINATION:
-
             def termination():
                 return (self.episode > nb_episodes)
 
         try:
             # Run steps (and episodes) until the termination criterion is met
             while not (termination()):
+                # Init episode
                 # If we are at the beginning of a new episode, execute a startup sequence
-                if observation_1 is None:
-                    episode_step = 1
-                    self.episode_reward = 0.
+                if self.done:
                     self.episode += 1
+                    self.episode_reward = 0.
+                    episode_step = 0
                     callbacks.on_episode_begin(self.episode)
 
                     # Obtain the initial observation by resetting the environment.
                     self.reset_states()
                     observation_0 = deepcopy(env.reset())
-                    observation_0 = self.processor.process_observation(
-                        observation_0)
                     assert observation_0 is not None
 
                     # Perform random steps at beginning of episode and do not record them into the experience.
@@ -225,15 +222,12 @@ class Agent(object):
                     # Update the observation
                     observation_0 = observation_1
                     # Increment the episode step
-                    episode_step += 1
 
                 # Increment the current step in both cases
                 self.step += 1
-
-                # At this point, we expect to be fully initialized.
-                assert self.episode_reward is not None
-                assert episode_step is not None
-                assert observation_0 is not None
+                episode_step += 1
+                reward = 0.
+                accumulated_info = {}
 
                 # Run a single step.
                 callbacks.on_step_begin(episode_step)
@@ -242,19 +236,16 @@ class Agent(object):
 
                 # state_0 -- (foward) --> action
                 action = self.forward(observation_0)
-
                 # Process the action
                 action = self.processor.process_action(action)
 
                 # action -- (step) --> (reward, state_1, terminal)
-                reward = 0.
-                accumulated_info = {}
-                self.done = False
-
+                # Apply the action
+                # With repetition, if necesarry
                 for _ in range(action_repetition):
                     callbacks.on_action_begin(action)
                     observation_1, r, self.done, info = env.step(action)
-                    observation_1 = deepcopy(observation_1)
+                    # observation_1 = deepcopy(observation_1)
 
                     observation_1, r, self.done, info = self.processor.process_step(
                         observation_1, r, self.done, info)
@@ -268,18 +259,22 @@ class Agent(object):
 
                     reward += r
 
+                    # Set episode as finished if the environment has terminated
                     if self.done:
                         break
 
+                # Scale the reward
+                reward = reward * reward_scaling
+                self.episode_reward += reward
+
+                # End of the step
                 # Stop episode if reached the step limit
                 if nb_max_episode_steps and episode_step >= nb_max_episode_steps:
                     # Force a terminal state.
                     self.done = True
 
-                # Scale the reward
-                reward = reward * reward_scaling
-
-                # Use the step information to train the algorithm
+                # Post step: training, callbacks and hooks
+                # Train the algorithm
                 metrics, self.step_summaries = self.backward(
                     observation_0,
                     action,
@@ -288,8 +283,12 @@ class Agent(object):
                     terminal=self.done,
                     epoch=self.step)
 
+                # Hooks
+                for hook in self.hooks:
+                    hook()
+
+                # Callbacks
                 # Collect statistics
-                self.episode_reward += reward
                 step_logs = {
                     'action': action,
                     'observation': observation_1,
@@ -298,25 +297,17 @@ class Agent(object):
                     'episode': self.episode,
                     'info': accumulated_info,
                 }
-
                 callbacks.on_step_end(episode_step, step_logs)
 
-                # Call the hooks
-                for hook in self.hooks:
-                    hook()
-
-                # Close the episode by resetting the variables
+                # Episodic callbacks
                 if self.done:
-                    # This episode is finished, report and reset.
+                    # Collect statistics
                     episode_logs = {
                         'episode_reward': np.float_(self.episode_reward),
                         'nb_episode_steps': np.float_(episode_step),
                         'nb_steps': np.float_(self.step),
                     }
                     callbacks.on_episode_end(self.episode, logs=episode_logs)
-
-                    # Reset the episode variables
-                    observation_1 = None
 
         except KeyboardInterrupt:
             # We catch keyboard interrupts here so that training can be be safely aborted.
@@ -327,7 +318,7 @@ class Agent(object):
         callbacks.on_train_end(logs={'did_abort': did_abort})
         self._on_train_end()
 
-        return history
+        return(history)
 
     def _perform_random_steps(self, nb_max_start_steps, start_step_policy, env,
                               observation, callbacks):
