@@ -3,12 +3,14 @@ import tensorflow as tf
 
 
 class Hook:
-    def __init__(self, agent):
+    def __init__(self, agent, episodic=True):
         """
         The abstract Hook class
         :param agent: the RL agent
+        :param episodic: Whether the hook will use episode information
         """
         self.agent = agent
+        self.episodic = episodic
 
     def __call__(self):
         """
@@ -42,8 +44,8 @@ class TrajectoryHook(Hook):
 
 
 class TensorboardHook(Hook):
-    def __init__(self, agent):
-        super().__init__(agent)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.summary_writer = tf.summary.FileWriter('./logs')
 
     def __call__(self):
@@ -52,7 +54,8 @@ class TensorboardHook(Hook):
             # FIXME: Use only one summary
             self.summary_writer.add_summary(summary, self.agent.step)
 
-        # Episode summaries
-        if self.agent.done:
-            episode_summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=self.agent.episode_reward), ])
-            self.summary_writer.add_summary(episode_summary, self.agent.episode)
+        if self.episodic:
+            # Episode summaries
+            if self.agent.done:
+                episode_summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=self.agent.episode_reward), ])
+                self.summary_writer.add_summary(episode_summary, self.agent.episode)

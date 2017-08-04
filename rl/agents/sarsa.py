@@ -6,7 +6,7 @@ from keras.callbacks import History
 from keras.layers import Input, Lambda
 import keras.backend as K
 
-from rl.core import Agent
+from rl.agent import Agent
 from rl.agents.dqn import mean_q
 from rl.util import huber_loss
 from rl.policy import EpsGreedyQPolicy, GreedyQPolicy

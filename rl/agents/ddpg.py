@@ -6,7 +6,7 @@ import tensorflow as tf
 import keras.backend as K
 from collections import namedtuple
 
-from rl.core import Agent
+from rl.agent import Agent
 from rl.util import huber_loss, clone_model, get_soft_target_model_ops
 from rl.utils.numerics import gradient_inverter
 
@@ -337,8 +337,7 @@ class DDPGAgent(Agent):
                  observation_1,
                  terminal=False,
                  fit_actor=True,
-                 fit_critic=True,
-                 epoch=1):
+                 fit_critic=True):
 
         # Default values
         metrics = [np.nan for _ in self.metrics_names]
@@ -346,7 +345,7 @@ class DDPGAgent(Agent):
 
         # Stop here if not training
         if not self.training:
-            return((metrics, summaries))
+            return ((metrics, summaries))
 
         # Store most recent experience in memory.
         if self.step % self.memory_interval == 0:
@@ -366,34 +365,19 @@ class DDPGAgent(Agent):
             hard_update_target_critic = self.step % self.target_critic_update == 0
 
             if (fit_actor or fit_critic):
-                summaries = self.fit_nets(
+                summaries = self.fit_controllers(
                     fit_critic=fit_critic,
                     fit_actor=fit_actor,
                     hard_update_target_critic=hard_update_target_critic,
                     hard_update_target_actor=hard_update_target_actor)
 
-        return((metrics, summaries))
+        return ((metrics, summaries))
 
-    def fit_offline(self,
-                    fit_critic=True,
-                    fit_actor=True,
-                    hard_update_target_critic=False,
-                    hard_update_target_actor=False,
-                    epochs=1):
-        for epoch in range(epochs):
-            # TODO: Implement callback support
-            print("Training epoch {}".format(epoch))
-            self.fit_nets(
-                fit_critic=fit_critic,
-                fit_actor=fit_actor,
-                hard_update_target_critic=hard_update_target_critic,
-                hard_update_target_actor=hard_update_target_actor)
-
-    def fit_nets(self,
-                 fit_critic=True,
-                 fit_actor=True,
-                 hard_update_target_critic=False,
-                 hard_update_target_actor=False):
+    def fit_controllers(self,
+                        fit_critic=True,
+                        fit_actor=True,
+                        hard_update_target_critic=False,
+                        hard_update_target_actor=False):
         """Fit the actor and critic networks"""
         # TODO: Export metrics to tensorboard
 
