@@ -317,9 +317,6 @@ class Agent(object):
 
                     # Reset the episode variables
                     observation_1 = None
-                    # For safety
-                    episode_step = None
-                    self.episode_reward = None
 
         except KeyboardInterrupt:
             # We catch keyboard interrupts here so that training can be be safely aborted.

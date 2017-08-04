@@ -11,6 +11,11 @@ from keras.utils.generic_utils import Progbar
 
 
 class Callback(KerasCallback):
+    """
+    Generic callback object
+
+    Every method takes a logs dict as argument
+    """
     def _set_env(self, env):
         self.env = env
 
@@ -101,6 +106,7 @@ class TestLogger(Callback):
 
 
 class TrainEpisodeLogger(Callback):
+    """Display information at the episode scale"""
     def __init__(self):
         # Some algorithms compute multiple episodes at once since they are multi-threaded.
         # We therefore use a dictionary that is indexed by the episode to separate episodes
@@ -152,7 +158,11 @@ class TrainEpisodeLogger(Callback):
 
         nb_step_digits = str(
             int(np.ceil(np.log10(self.params['nb_steps']))))
-        template = '{step: ' + nb_step_digits + 'd}/{nb_steps}: episode: {episode}, duration: {duration:.3f}s, episode steps: {episode_steps}, steps per second: {sps:.0f}, episode reward: {episode_reward:.3f}, mean reward: {reward_mean:.3f} [{reward_min:.3f}, {reward_max:.3f}], mean action: {action_mean:.3f} [{action_min:.3f}, {action_max:.3f}], mean observation: {obs_mean:.3f} [{obs_min:.3f}, {obs_max:.3f}], {metrics}'
+        template = "{step: " + nb_step_digits + "d}/{nb_steps}:"
+        template += " episode: {episode}, duration: {duration:.3f}s, "
+        template += "episode steps: {episode_steps}, steps per second: {sps:.0f}, "
+        template += "episode reward: {episode_reward:.3f}, mean reward: {reward_mean:.3f} [{reward_min:.3f}, {reward_max:.3f}], "
+        template += "mean action: {action_mean:.3f} [{action_min:.3f}, {action_max:.3f}], mean observation: {obs_mean:.3f} [{obs_min:.3f}, {obs_max:.3f}], {metrics}"
         variables = {
             'step': self.step,
             'nb_steps': self.params['nb_steps'],
