@@ -1,3 +1,5 @@
+# For python2 support
+from __future__ import print_function
 import warnings
 from copy import deepcopy
 
@@ -9,8 +11,6 @@ from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Vi
 from rl.hooks import PortraitHook, TensorboardHook, Hooks
 from rl.core import Processor
 
-# For python2 support
-from __future__ import print_function
 
 # Global variables
 DEBUG = True
