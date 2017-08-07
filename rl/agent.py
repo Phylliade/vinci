@@ -8,13 +8,11 @@ from keras.callbacks import History
 import keras.backend as K
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
-from rl.hooks import PortraitHook, TensorboardHook, Hooks
+from rl.hooks import PortraitHook, TensorboardHook, TrajectoryHook, Hooks
 from rl.core import Processor
 
 
 # Global variables
-DEBUG = True
-
 STEPS_TERMINATION = 1
 EPISODES_TERMINATION = 2
 
@@ -54,7 +52,7 @@ class Agent(object):
 
         # Setup hook variables
         self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
-        self._hook_variables_optional = ["reward", "episode_reward"]
+        self._hook_variables_optional = ["reward", "episode_reward", "observation"]
         # Set them to none as default, only if not defined
         for variable in (self._hook_variables + self._hook_variables_optional):
             setattr(self, variable, getattr(self, variable, None))
@@ -141,9 +139,6 @@ class Agent(object):
 
         self.training = training
 
-        if DEBUG:
-            print("Training mode:".format(self.training))
-
         # Initialize callbacks
         if callbacks is None:
             callbacks = []
@@ -182,7 +177,7 @@ class Agent(object):
             callbacks._set_params(params)
 
         # Initialize the Hooks
-        hooks = Hooks(self, [TensorboardHook(episodic=False), PortraitHook()])
+        hooks = Hooks(self, [TensorboardHook(), PortraitHook(), TrajectoryHook()])
 
         # Define the termination criterion
         # Step and episode at which we satrt the function
@@ -240,6 +235,9 @@ class Agent(object):
                     # Update the observation
                     observation_0 = observation_1
                     # Increment the episode step
+
+                # FIXME: Use only one of the two variables
+                self.observation = observation_0
 
                 # Increment the current step in both cases
                 self.step += 1
@@ -393,7 +391,7 @@ class Agent(object):
         self.training = True
         self.done = True
 
-        hooks = Hooks(self, [TensorboardHook(episodic=False), PortraitHook()])
+        hooks = Hooks(self, [TensorboardHook(), PortraitHook()])
 
         for epoch in range(epochs):
             if self.done:

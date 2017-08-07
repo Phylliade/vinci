@@ -27,7 +27,7 @@ def portrait_actor(actor, definition=50, plot=True, save_figure=False, figure_fi
             plt.close()
 
 
-def portrait_critic(critic, definition=50, plot=True, action=[-1], save_file="critic.png", save_figure=False, figure_file="actor.png"):
+def portrait_critic(critic, definition=50, plot=True, action=[-1], save_figure=False, figure_file="critic.png"):
     portrait = np.zeros((definition, definition))
     center = -0.523
     pos_min = -1.2 - center
@@ -49,3 +49,11 @@ def portrait_critic(critic, definition=50, plot=True, action=[-1], save_file="cr
             # TODO: Create the directory if it doesn't exist
             plt.savefig(figure_file)
             plt.close()
+
+
+def plot_trajectory(trajectory, figure_file="trajectory.png"):
+    plt.figure(figsize=(10, 10))
+    plt.scatter(trajectory["x"], trajectory["y"], c=range(len(trajectory["x"])))
+    plt.colorbar()
+    plt.savefig(figure_file)
+    plt.close()

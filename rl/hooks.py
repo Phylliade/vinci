@@ -1,4 +1,4 @@
-from rl.utils.plot import portrait_critic, portrait_actor
+from rl.utils.plot import portrait_critic, portrait_actor, plot_trajectory
 import tensorflow as tf
 
 
@@ -55,8 +55,19 @@ class PortraitHook(Hook):
 
 class TrajectoryHook(Hook):
     """Records the trajectory of the agent"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.trajectory = {"x": [], "y": []}
+
     def __call__(self):
-        pass
+        self.trajectory["x"].append(self.agent.observation[0])
+        self.trajectory["y"].append(self.agent.observation[1])
+
+        if self.agent.done:
+            plot_trajectory(self.trajectory, figure_file=("figures/trajectory/{}.png".format(self.count)))
+            # Flush the trajectories
+            self.trajectory["x"] = []
+            self.trajectory["y"] = []
 
 
 class TensorboardHook(Hook):
