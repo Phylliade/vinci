@@ -11,6 +11,11 @@ It began as a fork of [keras-rl](https://github.com/matthiasplappert/keras-rl) b
 * Advanced training capabilities: Offline training, critic-only (or actor-only) training...
 * Easy logging : Tensorboard, Terminal...
 
+# Documentation
+An online documentation can be found at:
+
+http://vinci.readthedocs.io/en/latest/
+
 # Installation
 Run :
 ```
