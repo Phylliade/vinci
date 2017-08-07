@@ -11,6 +11,10 @@ It began as a fork of [keras-rl](https://github.com/matthiasplappert/keras-rl) b
 * Advanced training capabilities: Offline training, critic-only (or actor-only) training...
 * Easy logging : Tensorboard, Terminal...
 
+Here's an example of the evolution of the policy during learning on the ContinuousMountainCar environment:
+
+![](assets/animation.gif)
+
 # Documentation
 An online documentation can be found at:
 
