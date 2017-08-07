@@ -1,6 +1,7 @@
+"""Legacy classes, to be removed in future versions."""
+
 # -*- coding: utf-8 -*-
 import numpy as np
-
 
 
 class Processor(object):

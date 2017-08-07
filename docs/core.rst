@@ -1,4 +1,4 @@
-core
+:mod:`core` (legacy)
 ====
 
 .. automodule:: rl.core

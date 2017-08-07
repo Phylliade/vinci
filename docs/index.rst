@@ -6,12 +6,13 @@
 Welcome to vinci's documentation!
 =================================
 
+Vinci is a generic Deep Reinforcement Learning framework.
+
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   core
    agent
    ddpg
    hooks

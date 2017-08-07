@@ -1,4 +1,4 @@
-hooks
+:mod:`hooks`
 ===========
 
 .. automodule:: rl.hooks
