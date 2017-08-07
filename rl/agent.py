@@ -393,6 +393,7 @@ class Agent(object):
 
         hooks = Hooks(self, [TensorboardHook(), PortraitHook()])
 
+        # We could use a termination criterion, based on step instead of epoch, as in  _run
         for epoch in range(epochs):
             if self.done:
                 self.episode += 1

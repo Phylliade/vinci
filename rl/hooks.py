@@ -64,7 +64,7 @@ class TrajectoryHook(Hook):
         self.trajectory["y"].append(self.agent.observation[1])
 
         if self.agent.done:
-            plot_trajectory(self.trajectory, figure_file=("figures/trajectory/{}.png".format(self.count)))
+            plot_trajectory(self.trajectory, self.agent.actor, figure_file=("figures/trajectory/{}.png".format(self.count)))
             # Flush the trajectories
             self.trajectory["x"] = []
             self.trajectory["y"] = []

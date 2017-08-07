@@ -133,6 +133,7 @@ class TrainEpisodeLogger(Callback):
         self.rewards[episode] = []
         self.actions[episode] = []
         self.metrics[episode] = []
+        print("Begin episode {}".format(episode))
 
     def on_episode_end(self, episode, logs):
         duration = timeit.default_timer() - self.episode_start[episode]
