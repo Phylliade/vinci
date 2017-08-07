@@ -14,6 +14,7 @@ Contents:
    core
    agent
    ddpg
+   hooks
 
 
 
