@@ -23,7 +23,7 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
             return MagicMock()
 
-MOCK_MODULES = ['numpy', 'keras', 'tensorflow', 'matplotlib', 'matplotlib.pyplot', 'keras.backend', 'keras.callbacks', 'keras.layers', 'keras.utils']
+MOCK_MODULES = ['numpy', 'keras', 'tensorflow', 'matplotlib', 'matplotlib.pyplot', 'keras.backend', 'keras.callbacks', 'keras.layers', 'keras.utils', 'keras.utils.generic_utils']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # If extensions (or modules to document with autodoc) are in another directory,
