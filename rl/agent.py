@@ -6,7 +6,7 @@ from keras.callbacks import History
 import keras.backend as K
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
-from rl.hooks import PortraitHook, TensorboardHook
+from rl.hooks import PortraitHook, TensorboardHook, Hooks
 from rl.core import Processor
 
 # Global variables
@@ -44,14 +44,19 @@ class Agent(object):
         # Use a default identity processor if not provided
         if processor is None:
             self.processor = Processor()
-        self.training = False
-        self.step = 0
         # Use the same session as Keras
         self.session = K.get_session()
         # self.session = tf.Session()
 
-        # Hooks
-        self.hooks = [PortraitHook(self), TensorboardHook(self)]
+        # Setup hook variables
+        self._hook_variables = ["training", "step", "reward", "episode", "episode_reward", "done", "step_summaries"]
+        self.training = None
+        self.step = 0
+        self.reward = None
+        self.episode = None
+        self.episode_reward = None
+        self.done = None
+        self.step_summaries = None
 
     def get_config(self):
         """Configuration of the agent for serialization.
@@ -167,6 +172,9 @@ class Agent(object):
         else:
             callbacks._set_params(params)
 
+        # Hooks
+        hooks = Hooks(self, [TensorboardHook(episodic=False), PortraitHook()])
+
         if self.training:
             self._on_train_begin()
         else:
@@ -226,7 +234,7 @@ class Agent(object):
                 # Increment the current step in both cases
                 self.step += 1
                 episode_step += 1
-                reward = 0.
+                self.reward = 0.
                 accumulated_info = {}
 
                 # Run a single step.
@@ -257,15 +265,15 @@ class Agent(object):
                         accumulated_info[key] += value
                     callbacks.on_action_end(action)
 
-                    reward += r
+                    self.reward += r
 
                     # Set episode as finished if the environment has terminated
                     if self.done:
                         break
 
                 # Scale the reward
-                reward = reward * reward_scaling
-                self.episode_reward += reward
+                self.reward = self.reward * reward_scaling
+                self.episode_reward += self.reward
 
                 # End of the step
                 # Stop episode if reached the step limit
@@ -278,20 +286,19 @@ class Agent(object):
                 metrics, self.step_summaries = self.backward(
                     observation_0,
                     action,
-                    reward,
+                    self.reward,
                     observation_1,
                     terminal=self.done)
 
                 # Hooks
-                for hook in self.hooks:
-                    hook()
+                hooks()
 
                 # Callbacks
                 # Collect statistics
                 step_logs = {
                     'action': action,
                     'observation': observation_1,
-                    'reward': reward,
+                    'reward': self.reward,
                     'metrics': metrics,
                     'episode': self.episode,
                     'info': accumulated_info,
@@ -365,7 +372,9 @@ class Agent(object):
                     epochs=1):
         """Train the networks in offline mode"""
 
-        hooks = [TensorboardHook(self, episodic=False), PortraitHook]
+        self.training = True
+
+        hooks = Hooks(self, [TensorboardHook(episodic=False), PortraitHook()])
 
         for epoch in range(epochs):
             # Init step
@@ -378,8 +387,7 @@ class Agent(object):
                 hard_update_target_actor=hard_update_target_actor)
 
             # Post step
-            for hook in hooks:
-                hook()
+            hooks()
 
     def test(self, **kwargs):
         """
@@ -419,7 +427,7 @@ class Agent(object):
         Train the agent controllers
 
         This is an internal method used to directly train the controllers. There is no learning strategy.
-        It should be used by backward
+        It should be used by backward.
         """
         raise(NotImplementedError())
 
