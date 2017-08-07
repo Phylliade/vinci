@@ -47,25 +47,21 @@ class Agent(object):
         # Use a default identity processor if not provided
         if processor is None:
             self.processor = Processor()
+
         # Use the same session as Keras
         self.session = K.get_session()
         # self.session = tf.Session()
 
         # Setup hook variables
-        self._hook_variables = ["training", "step", "reward", "episode", "episode_reward", "done", "step_summaries"]
-        self.training = None
-        self.step = 0
-        self.reward = None
-        self.episode = None
-        self.episode_reward = None
-        self.episode_step = None
-        self.done = None
-        self.step_summaries = None
+        self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
+        self._hook_variables_optional = ["reward", "episode_reward"]
+        # Set them to none as default, only if not defined
+        for variable in (self._hook_variables + self._hook_variables_optional):
+            setattr(self, variable, getattr(self, variable, None))
 
-    def get_config(self):
-        """Configuration of the agent for serialization.
-        """
-        return {}
+        # Persistent values
+        self.step = 0
+        self.episode = 0
 
     def compile(self, optimizer, metrics=[]):
         """Compiles an agent and the underlaying models to be used for training and testing.
@@ -185,8 +181,19 @@ class Agent(object):
         else:
             callbacks._set_params(params)
 
-        # Hooks
+        # Initialize the Hooks
         hooks = Hooks(self, [TensorboardHook(episodic=False), PortraitHook()])
+
+        # Define the termination criterion
+        # Step and episode at which we satrt the function
+        start_step = self.step
+        start_episode = self.episode
+        if termination_criterion == STEPS_TERMINATION:
+            def termination():
+                return (self.step - start_step > nb_steps)
+        elif termination_criterion == EPISODES_TERMINATION:
+            def termination():
+                return (self.episode - start_episode > nb_episodes)
 
         if self.training:
             self._on_train_begin()
@@ -196,7 +203,6 @@ class Agent(object):
         callbacks.on_train_begin()
 
         # Setup
-        self.episode = 0
         self.done = True
         did_abort = False
         # Define these for clarification, not mandatory:
@@ -205,14 +211,6 @@ class Agent(object):
         observation_0 = None
         observation_1 = None
         self.step_summaries = None
-
-        # Define the termination criterion
-        if termination_criterion == STEPS_TERMINATION:
-            def termination():
-                return (self.step > nb_steps)
-        elif termination_criterion == EPISODES_TERMINATION:
-            def termination():
-                return (self.episode > nb_episodes)
 
         try:
             # Run steps (and episodes) until the termination criterion is met
@@ -376,19 +374,20 @@ class Agent(object):
         """
         return(self._run(training=True, **kwargs))
 
-        def test(self, **kwargs):
-            """
-            Test the agent on the given environment.
-            In training mode, noise is removed.
-            """
-            return(self._run(training=False, **kwargs))
+    def test(self, **kwargs):
+        """
+        Test the agent on the given environment.
+        In training mode, noise is removed.
+        """
+        return(self._run(training=False, **kwargs))
 
     def fit_offline(self,
                     fit_critic=True,
                     fit_actor=True,
                     hard_update_target_critic=False,
                     hard_update_target_actor=False,
-                    epochs=1):
+                    epochs=1,
+                    episode_length=20):
         """Train the networks in offline mode"""
 
         self.training = True
@@ -402,18 +401,19 @@ class Agent(object):
                 self.episode_reward = 0.
                 self.episode_step = 0
 
-            # Init step
+            # Initialize the step
+            self.done = False
             self.step += 1
             self.episode_step += 1
 
             print("\rTraining epoch: {} ".format(epoch), end="")
-            self.step_summaries = self.fit_nets(
+            self.step_summaries = self.fit_controllers(
                 fit_critic=fit_critic,
                 fit_actor=fit_actor,
                 hard_update_target_critic=hard_update_target_critic,
                 hard_update_target_actor=hard_update_target_actor)
 
-            if (epoch % 20 == 0):
+            if (epoch % episode_length == 0):
                 self.done = True
 
             # Post step
@@ -470,6 +470,11 @@ class Agent(object):
             overwrite (boolean): If `False` and `filepath` already exists, raises an error.
         """
         raise NotImplementedError()
+
+    def get_config(self):
+        """Configuration of the agent for serialization.
+        """
+        return {}
 
     @property
     def layers(self):
