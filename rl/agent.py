@@ -55,6 +55,7 @@ class Agent(object):
         self.reward = None
         self.episode = None
         self.episode_reward = None
+        self.episode_step = None
         self.done = None
         self.step_summaries = None
 
@@ -62,6 +63,15 @@ class Agent(object):
         """Configuration of the agent for serialization.
         """
         return {}
+
+    def compile(self, optimizer, metrics=[]):
+        """Compiles an agent and the underlaying models to be used for training and testing.
+
+        # Arguments
+            optimizer (`keras.optimizers.Optimizer` instance): The optimizer to be used during training.
+            metrics (list of functions `lambda y_true, y_pred: metric`): The metrics to run during training.
+        """
+        raise NotImplementedError()
 
     def _run(self,
              env,
@@ -184,7 +194,6 @@ class Agent(object):
 
         # Setup
         self.episode = 0
-        self.step = 0
         self.done = True
         did_abort = False
         # Define these for clarification, not mandatory:
@@ -210,7 +219,7 @@ class Agent(object):
                 if self.done:
                     self.episode += 1
                     self.episode_reward = 0.
-                    episode_step = 0
+                    self.episode_step = 0
                     callbacks.on_episode_begin(self.episode)
 
                     # Obtain the initial observation by resetting the environment.
@@ -233,12 +242,12 @@ class Agent(object):
 
                 # Increment the current step in both cases
                 self.step += 1
-                episode_step += 1
+                self.episode_step += 1
                 self.reward = 0.
                 accumulated_info = {}
 
                 # Run a single step.
-                callbacks.on_step_begin(episode_step)
+                callbacks.on_step_begin(self.episode_step)
                 # This is were all of the work happens. We first perceive and compute the action
                 # (forward step) and then use the reward to improve (backward step).
 
@@ -277,7 +286,7 @@ class Agent(object):
 
                 # End of the step
                 # Stop episode if reached the step limit
-                if nb_max_episode_steps and episode_step >= nb_max_episode_steps:
+                if nb_max_episode_steps and self.episode_step >= nb_max_episode_steps:
                     # Force a terminal state.
                     self.done = True
 
@@ -303,14 +312,14 @@ class Agent(object):
                     'episode': self.episode,
                     'info': accumulated_info,
                 }
-                callbacks.on_step_end(episode_step, step_logs)
+                callbacks.on_step_end(self.episode_step, step_logs)
 
                 # Episodic callbacks
                 if self.done:
                     # Collect statistics
                     episode_logs = {
                         'episode_reward': np.float_(self.episode_reward),
-                        'nb_episode_steps': np.float_(episode_step),
+                        'nb_episode_steps': np.float_(self.episode_step),
                         'nb_steps': np.float_(self.step),
                     }
                     callbacks.on_episode_end(self.episode, logs=episode_logs)
@@ -364,6 +373,13 @@ class Agent(object):
         """
         return(self._run(training=True, **kwargs))
 
+        def test(self, **kwargs):
+            """
+            Test the agent on the given environment.
+            In training mode, noise is removed.
+            """
+            return(self._run(training=False, **kwargs))
+
     def fit_offline(self,
                     fit_critic=True,
                     fit_actor=True,
@@ -373,12 +389,20 @@ class Agent(object):
         """Train the networks in offline mode"""
 
         self.training = True
+        self.done = True
 
         hooks = Hooks(self, [TensorboardHook(episodic=False), PortraitHook()])
 
         for epoch in range(epochs):
+            if self.done:
+                self.episode += 1
+                self.episode_reward = 0.
+                self.episode_step = 0
+
             # Init step
             self.step += 1
+            self.episode_step += 1
+
             print("\rTraining epoch: {} ".format(epoch), end="")
             self.step_summaries = self.fit_nets(
                 fit_critic=fit_critic,
@@ -386,15 +410,11 @@ class Agent(object):
                 hard_update_target_critic=hard_update_target_critic,
                 hard_update_target_actor=hard_update_target_actor)
 
+            if (epoch % 20 == 0):
+                self.done = True
+
             # Post step
             hooks()
-
-    def test(self, **kwargs):
-        """
-        Test the agent on the given environment.
-        In training mode, noise is removed.
-        """
-        return(self._run(training=False, **kwargs))
 
     def reset_states(self):
         """Resets all internally kept states after an episode is completed."""
@@ -430,15 +450,6 @@ class Agent(object):
         It should be used by backward.
         """
         raise(NotImplementedError())
-
-    def compile(self, optimizer, metrics=[]):
-        """Compiles an agent and the underlaying models to be used for training and testing.
-
-        # Arguments
-            optimizer (`keras.optimizers.Optimizer` instance): The optimizer to be used during training.
-            metrics (list of functions `lambda y_true, y_pred: metric`): The metrics to run during training.
-        """
-        raise NotImplementedError()
 
     def load_weights(self, filepath):
         """Loads the weights of an agent from an HDF5 file.

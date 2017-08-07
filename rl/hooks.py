@@ -13,6 +13,7 @@ class Hook:
     * agent.step: int: the step number. Begins to 1.
     * agent.reward: The reward of the current step
     * agent.episode: int: The current episode. Begins to 1.
+    * agent.episode_step: int: The step count in the current episode. Begins to 1.
     * agent.episode_reward: The cumulated reward of the current episode
     * agent.done: Whether the episode is terminated
     * agent.step_summaries: A list of summaries of the current step
@@ -78,11 +79,19 @@ class TensorboardHook(Hook):
 
 class ValidationHook(Hook):
     """Perform validation of the hooks variables at runtime"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.validated = False
+
     def __call__(self):
-        # Check that every hook variables are defined
-        for variable in self.agent._hook_variables:
-            if getattr(self.agent, variable) is None:
-                raise(ValueError("The variable {} is None, whereas it should be defined for the hook API".format(variable)))
+        # Only run this hook once
+        if not self.validated:
+            # Check that every hook variables are defined
+            for variable in self.agent._hook_variables:
+                if getattr(self.agent, variable) is None:
+                    raise(ValueError("The variable {} is None, whereas it should be defined for the hook API".format(variable)))
+            # The test passed
+            self.validated = True
 
 
 class Hooks:
