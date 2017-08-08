@@ -1,5 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sb
+from .stats import network_distribution
+
+# TODO: Use an unified sample set for portrait_actor, portrait_critic and plot_distribution
+# e.g. a meshgrid
 
 
 def portrait_actor(actor, env, figure=None, definition=50, plot=True, save_figure=False, figure_file="actor.png"):
@@ -88,4 +93,19 @@ def plot_trajectory(trajectory, actor, env, figure=None, figure_file="trajectory
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.savefig(figure_file)
+    plt.close()
+
+
+def plot_distribution(actor, critic, env, actor_file="actor_distribution.png", critic_file="critic_distribution.png"):
+    """Plot the distributions of the network values"""
+    distribution_actor, distribution_critic = network_distribution(env, actor, critic)
+
+    plt.figure(figsize=(10, 10))
+    sb.distplot(distribution_actor)
+    plt.savefig(actor_file)
+    plt.close()
+
+    plt.figure(figsize=(10, 10))
+    sb.distplot(distribution_critic)
+    plt.savefig(critic_file)
     plt.close()

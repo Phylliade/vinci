@@ -1,4 +1,4 @@
-from rl.utils.plot import portrait_critic, portrait_actor, plot_trajectory
+from rl.utils.plot import portrait_critic, portrait_actor, plot_trajectory, plot_distribution
 import tensorflow as tf
 
 
@@ -21,6 +21,7 @@ class Hook:
     :param agent: the RL agent
     :param episodic: Whether the hook will use episode information
     """
+
     def __init__(self, agent=None, episodic=True):
         """
 
@@ -29,7 +30,7 @@ class Hook:
         self.episodic = episodic
 
     def __call__(self):
-        raise(NotImplementedError)
+        raise (NotImplementedError)
 
     def _register(self, agent):
         """Register the agent"""
@@ -37,24 +38,47 @@ class Hook:
 
     @property
     def count(self):
-        return(self.agent.episode)
+        return (self.agent.episode)
 
 
 class PortraitHook(Hook):
     # TODO: Move this hook to a non-blocking thread
     def __call__(self):
         if self.agent.done:
+
+            # Get the file name
             if self.agent.training:
                 file_name = "portrait"
             else:
                 file_name = "portrait_test"
             file_name = "{}_".format(self.count) + file_name + ".png"
-            portrait_actor(self.agent.actor, self.agent.env, save_figure=True, figure_file=("figures/actor/" + file_name))
-            portrait_critic(self.agent.critic, self.agent.env, save_figure=True, figure_file=("figures/critic/" + file_name))
+
+            # Plot the phase portrait of the actor and the critic
+            portrait_actor(
+                self.agent.actor,
+                self.agent.env,
+                save_figure=True,
+                figure_file=("figures/actor/" + file_name))
+            portrait_critic(
+                self.agent.critic,
+                self.agent.env,
+                save_figure=True,
+                figure_file=("figures/critic/" + file_name))
+
+            # Plot the distribution of the actor and the critic
+            plot_distribution(
+                self.agent.actor,
+                self.agent.critic,
+                self.agent.env,
+                actor_file="figures/actor/distribution/{}.png".format(
+                    self.count),
+                critic_file="figures/critic/distribution/{}.png".format(
+                    self.count))
 
 
 class TrajectoryHook(Hook):
     """Records the trajectory of the agent"""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.trajectory = {"x": [], "y": []}
@@ -64,7 +88,11 @@ class TrajectoryHook(Hook):
         self.trajectory["y"].append(self.agent.observation[1])
 
         if self.agent.done:
-            plot_trajectory(self.trajectory, self.agent.actor, self.agent.env, figure_file=("figures/trajectory/{}.png".format(self.count)))
+            plot_trajectory(
+                self.trajectory,
+                self.agent.actor,
+                self.agent.env,
+                figure_file=("figures/trajectory/{}.png".format(self.count)))
             # Flush the trajectories
             self.trajectory["x"] = []
             self.trajectory["y"] = []
@@ -83,12 +111,18 @@ class TensorboardHook(Hook):
 
         # Episode summaries
         if self.agent.done:
-            episode_summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=self.agent.episode_reward), ])
-            self.summary_writer.add_summary(episode_summary, self.agent.episode)
+            episode_summary = tf.Summary(value=[
+                tf.Summary.Value(
+                    tag="episode_reward",
+                    simple_value=self.agent.episode_reward),
+            ])
+            self.summary_writer.add_summary(episode_summary,
+                                            self.agent.episode)
 
 
 class ValidationHook(Hook):
     """Perform validation of the hooks variables at runtime"""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.validated = False
@@ -99,13 +133,16 @@ class ValidationHook(Hook):
             # Check that every hook variables are defined
             for variable in self.agent._hook_variables:
                 if getattr(self.agent, variable) is None:
-                    raise(ValueError("The variable {} is None, whereas it should be defined for the hook API".format(variable)))
+                    raise (ValueError(
+                        "The variable {} is None, whereas it should be defined for the hook API".
+                        format(variable)))
             # The test passed
             self.validated = True
 
 
 class Hooks:
     """Class to instiantiate and call multiple hooks"""
+
     def __init__(self, agent, hooks=None):
         self.agent = agent
         # Use a validationHook by default
