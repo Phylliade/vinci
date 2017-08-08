@@ -2,81 +2,90 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def portrait_actor(actor, figure=None, definition=50, plot=True, save_figure=False, figure_file="actor.png"):
-    portrait = np.zeros((definition, definition))
-    # FIXME: not necessary with env v1?
-    center = -0.523
-    pos_min = -1.2 - center
-    pos_max = 0.6 - center
-    max_speed = 0.07
-    x_axis = np.linspace(pos_min, pos_max, num=definition)
+def portrait_actor(actor, env, figure=None, definition=50, plot=True, save_figure=False, figure_file="actor.png"):
+    """Portrait the actor"""
+    if env.observation_space.dim != 2:
+        raise(ValueError("The provided environment has an observation space of dimension {}, whereas it should be 2".format(env.observation_space.dim)))
 
-    for index_x, x in enumerate(x_axis):
-        for index_v, v in enumerate(np.linspace(-max_speed, max_speed, num=definition)):
+    portrait = np.zeros((definition, definition))
+    x_min, y_min = env.observation_space.low
+    x_max, y_max = env.observation_space.high
+    # Use the dimension names if given otherwise default to "x" and "y"
+    x_label, y_label = getattr(env.observation_space, "names", ["x", "y"])
+
+    for index_x, x in enumerate(np.linspace(x_min, x_max, num=definition)):
+        for index_y, y in enumerate(np.linspace(y_min, y_max, num=definition)):
             # Be careful to fill the matrix in the right order
-            portrait[definition - (1 + index_v), index_x] = actor.predict(np.array([[x, v]]))
+            portrait[definition - (1 + index_y), index_x] = actor.predict(np.array([[x, y]]))
     if plot or save_figure:
         if figure is None:
             plt.figure(figsize=(10, 10))
-        plt.imshow(portrait, cmap="inferno", extent=[pos_min, pos_max, -max_speed, max_speed], aspect='auto')
+        plt.imshow(portrait, cmap="inferno", extent=[x_min, x_max, y_min, y_max], aspect='auto')
         plt.colorbar()
+        # Add a point at the center
         plt.scatter([0], [0])
-        plt.xlabel("Position")
-        plt.ylabel("Velocity")
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
         if save_figure:
             # TODO: Create the directory if it doesn't exist
             plt.savefig(figure_file)
             plt.close()
 
 
-def portrait_critic(critic, figure=None, definition=50, plot=True, action=[-1], save_figure=False, figure_file="critic.png"):
-    portrait = np.zeros((definition, definition))
-    center = -0.523
-    pos_min = -1.2 - center
-    pos_max = 0.6 - center
-    max_speed = 0.07
-    x_axis = np.linspace(pos_min, pos_max, num=definition)
+def portrait_critic(critic, env, figure=None, definition=50, plot=True, action=[-1], save_figure=False, figure_file="critic.png"):
+    if env.observation_space.dim != 2:
+        raise(ValueError("The provided environment has an observation space of dimension {}, whereas it should be 2".format(env.observation_space.dim)))
 
-    for index_x, x in enumerate(x_axis):
-        for index_v, v in enumerate(np.linspace(-max_speed, max_speed, num=definition)):
+    portrait = np.zeros((definition, definition))
+    x_min, y_min = env.observation_space.low
+    x_max, y_max = env.observation_space.high
+    x_label, y_label = getattr(env.observation_space, "names", ["x", "y"])
+
+    for index_x, x in enumerate(np.linspace(x_min, x_max, num=definition)):
+        for index_y, y in enumerate(np.linspace(y_min, y_max, num=definition)):
             # Be careful to fill the matrix in the right order
-            portrait[definition - (1 + index_v), index_x] = critic.predict_on_batch([np.array([[x, v]]), np.array(action)])
+            portrait[definition - (1 + index_y), index_x] = critic.predict_on_batch([np.array([[x, y]]), np.array(action)])
     if plot or save_figure:
         if figure is None:
             figure = plt.figure(figsize=(10, 10))
-        plt.imshow(portrait, cmap="inferno", extent=[pos_min, pos_max, -max_speed, max_speed], aspect='auto')
+        plt.imshow(portrait, cmap="inferno", extent=[x_min, x_max, y_min, y_max], aspect='auto')
         plt.colorbar()
+        # Add a point at the center
         plt.scatter([0], [0])
-        plt.xlabel("Position")
-        plt.ylabel("Velocity")
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
         if save_figure:
             # TODO: Create the directory if it doesn't exist
             plt.savefig(figure_file)
             plt.close()
 
 
-def plot_trajectory(trajectory, actor, figure=None, figure_file="trajectory.png", definition=50, plot=True, save_figure=False,):
+def plot_trajectory(trajectory, actor, env, figure=None, figure_file="trajectory.png", definition=50, plot=True, save_figure=False,):
     if figure is None:
         plt.figure(figsize=(10, 10))
     plt.scatter(trajectory["x"], trajectory["y"], c=range(1, len(trajectory["x"]) + 1))
     plt.colorbar(orientation="horizontal")
 
-    portrait = np.zeros((definition, definition))
-    # FIXME: not necessary with env v1?
-    center = -0.523
-    pos_min = -1.2 - center
-    pos_max = 0.6 - center
-    max_speed = 0.07
-    x_axis = np.linspace(pos_min, pos_max, num=definition)
+    if env.observation_space.dim != 2:
+        raise(ValueError("The provided environment has an observation space of dimension {}, whereas it should be 2".format(env.observation_space.dim)))
 
-    for index_x, x in enumerate(x_axis):
-        for index_v, v in enumerate(np.linspace(-max_speed, max_speed, num=definition)):
+    # Add the actor phase portrait
+    portrait = np.zeros((definition, definition))
+    x_min, y_min = env.observation_space.low
+    x_max, y_max = env.observation_space.high
+    # Use the dimension names if given otherwise default to "x" and "y"
+    x_label, y_label = getattr(env.observation_space, "names", ["x", "y"])
+
+    for index_x, x in enumerate(np.linspace(x_min, x_max, num=definition)):
+        for index_y, y in enumerate(np.linspace(y_min, y_max, num=definition)):
             # Be careful to fill the matrix in the right order
-            portrait[definition - (1 + index_v), index_x] = actor.predict(np.array([[x, v]]))
-    plt.imshow(portrait, cmap="inferno", extent=[pos_min, pos_max, -max_speed, max_speed], aspect='auto')
+            portrait[definition - (1 + index_y), index_x] = actor.predict(np.array([[x, y]]))
+
+    plt.imshow(portrait, cmap="inferno", extent=[x_min, x_max, y_min, y_max], aspect='auto')
     plt.colorbar()
+    # Add a point at the center
     plt.scatter([0], [0])
-    plt.xlabel("Position")
-    plt.ylabel("Velocity")
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
     plt.savefig(figure_file)
     plt.close()

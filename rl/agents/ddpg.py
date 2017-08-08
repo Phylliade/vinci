@@ -88,6 +88,7 @@ class DDPGAgent(Agent):
         self.action = env.action
 
         # Parameters.
+        self.env = env
         self.nb_actions = env.action_space.dim
         self.actions_low = env.action_space.low
         self.actions_high = env.action_space.high

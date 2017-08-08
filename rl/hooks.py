@@ -49,8 +49,8 @@ class PortraitHook(Hook):
             else:
                 file_name = "portrait_test"
             file_name = "{}_".format(self.count) + file_name + ".png"
-            portrait_actor(self.agent.actor, save_figure=True, figure_file=("figures/actor/" + file_name))
-            portrait_critic(self.agent.critic, save_figure=True, figure_file=("figures/critic/" + file_name))
+            portrait_actor(self.agent.actor, self.agent.env, save_figure=True, figure_file=("figures/actor/" + file_name))
+            portrait_critic(self.agent.critic, self.agent.env, save_figure=True, figure_file=("figures/critic/" + file_name))
 
 
 class TrajectoryHook(Hook):
@@ -64,7 +64,7 @@ class TrajectoryHook(Hook):
         self.trajectory["y"].append(self.agent.observation[1])
 
         if self.agent.done:
-            plot_trajectory(self.trajectory, self.agent.actor, figure_file=("figures/trajectory/{}.png".format(self.count)))
+            plot_trajectory(self.trajectory, self.agent.actor, self.agent.env, figure_file=("figures/trajectory/{}.png".format(self.count)))
             # Flush the trajectories
             self.trajectory["x"] = []
             self.trajectory["y"] = []
