@@ -3,12 +3,13 @@ import os
 
 import numpy as np
 import tensorflow as tf
+# Remove use of Keras backend
 import keras.backend as K
 from collections import namedtuple
 
 from rl.agent import Agent
-from rl.util import huber_loss, clone_model, get_soft_target_model_ops
-from rl.utils.numerics import gradient_inverter
+from rl.utils import clone_model, get_soft_target_model_ops
+from rl.utils.numerics import gradient_inverter, huber_loss
 
 Batch = namedtuple("Batch", ("state_0", "action", "reward", "state_1",
                              "terminal_1"))
@@ -292,15 +293,9 @@ class DDPGAgent(Agent):
             self.target_actor.reset_states()
             self.target_critic.reset_states()
 
-    def process_state_batch(self, batch):
-        batch = np.array(batch)
-        if self.processor is None:
-            return batch
-        return self.processor.process_state_batch(batch)
-
     def select_action(self, state):
         # [state] is the unprocessed version of a batch
-        batch_state = self.process_state_batch([state])
+        batch_state = [state]
         # We get a batch of 1 action
         # action = self.actor.predict_on_batch(batch_state)[0]
         action = self.session.run(
@@ -325,10 +320,7 @@ class DDPGAgent(Agent):
         # action = self.select_action(state)
         action = self.select_action(observation)
 
-        if self.processor is not None:
-            action = self.processor.process_action(action)
-
-        return (action)
+        return(action)
 
     def backward(self,
                  observation_0,
@@ -462,17 +454,10 @@ class DDPGAgent(Agent):
         # if self.processor is not None:
         #     metrics += self.processor.metrics
 
-        return (metrics)
+        return(metrics)
 
     def fit_actor(self, batch, sgd_iterations=1):
         """Fit the actor network"""
-        # TODO: implement metrics for actor
-
-        inputs = [batch.state_0, +batch.state_0]
-
-        if self.uses_learning_phase:
-            inputs += [self.training]
-
         for _ in range(sgd_iterations):
             # FIXME: metrics collection won't work with more than one iteration
             _, metrics = self.session.run(
@@ -480,7 +465,7 @@ class DDPGAgent(Agent):
                 feed_dict={self.state: batch.state_0,
                            K.learning_phase(): 1})
 
-        return (metrics)
+        return(metrics)
 
     def get_batch(self):
         """
@@ -506,9 +491,8 @@ class DDPGAgent(Agent):
             terminal1_batch.append(0. if e.terminal1 else 1.)
 
         # Prepare and validate parameters.
-        # TODO: Remove this, we do not need processors for now
-        state0_batch = self.process_state_batch(state0_batch)
-        state1_batch = self.process_state_batch(state1_batch)
+        state0_batch = state0_batch
+        state1_batch = state1_batch
         terminal1_batch = np.array(terminal1_batch)
         reward_batch = np.array(reward_batch)
         action_batch = np.array(action_batch)

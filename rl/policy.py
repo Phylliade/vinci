@@ -1,7 +1,7 @@
 from __future__ import division
 import numpy as np
 
-from rl.util import *
+from rl.utils import get_object_config
 
 
 class Policy(object):
