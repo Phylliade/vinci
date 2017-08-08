@@ -46,9 +46,6 @@ class DDPGAgent(Agent):
     """
 
     def __init__(self,
-                 nb_actions,
-                 actions_low,
-                 actions_high,
                  actor,
                  critic,
                  env,
@@ -91,9 +88,9 @@ class DDPGAgent(Agent):
         self.action = env.action
 
         # Parameters.
-        self.nb_actions = nb_actions
-        self.actions_low = actions_low
-        self.actions_high = actions_high
+        self.nb_actions = env.action_space.dim
+        self.actions_low = env.action_space.low
+        self.actions_high = env.action_space.high
         self.nb_steps_warmup_actor = nb_steps_warmup_actor
         self.nb_steps_warmup_critic = nb_steps_warmup_critic
         self.random_process = random_process
