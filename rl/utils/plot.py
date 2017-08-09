@@ -26,7 +26,7 @@ def portrait_actor(actor, env, figure=None, definition=50, plot=True, save_figur
         if figure is None:
             plt.figure(figsize=(10, 10))
         plt.imshow(portrait, cmap="inferno", extent=[x_min, x_max, y_min, y_max], aspect='auto')
-        plt.colorbar()
+        plt.colorbar(label="action")
         # Add a point at the center
         plt.scatter([0], [0])
         plt.xlabel(x_label)
@@ -54,7 +54,7 @@ def portrait_critic(critic, env, figure=None, definition=50, plot=True, action=[
         if figure is None:
             figure = plt.figure(figsize=(10, 10))
         plt.imshow(portrait, cmap="inferno", extent=[x_min, x_max, y_min, y_max], aspect='auto')
-        plt.colorbar()
+        plt.colorbar(label="critic value")
         # Add a point at the center
         plt.scatter([0], [0])
         plt.xlabel(x_label)
@@ -69,7 +69,7 @@ def plot_trajectory(trajectory, actor, env, figure=None, figure_file="trajectory
     if figure is None:
         plt.figure(figsize=(10, 10))
     plt.scatter(trajectory["x"], trajectory["y"], c=range(1, len(trajectory["x"]) + 1))
-    plt.colorbar(orientation="horizontal")
+    plt.colorbar(orientation="horizontal", label="steps")
 
     if env.observation_space.dim != 2:
         raise(ValueError("The provided environment has an observation space of dimension {}, whereas it should be 2".format(env.observation_space.dim)))
@@ -87,7 +87,7 @@ def plot_trajectory(trajectory, actor, env, figure=None, figure_file="trajectory
             portrait[definition - (1 + index_y), index_x] = actor.predict(np.array([[x, y]]))
 
     plt.imshow(portrait, cmap="inferno", extent=[x_min, x_max, y_min, y_max], aspect='auto')
-    plt.colorbar()
+    plt.colorbar(label="action")
     # Add a point at the center
     plt.scatter([0], [0])
     plt.xlabel(x_label)
@@ -102,10 +102,13 @@ def plot_distribution(actor, critic, env, actor_file="actor_distribution.png", c
 
     plt.figure(figsize=(10, 10))
     sb.distplot(distribution_actor)
+    plt.ylabel("probability")
+    plt.xlabel("action")
     plt.savefig(actor_file)
     plt.close()
 
     plt.figure(figsize=(10, 10))
     sb.distplot(distribution_critic)
+    plt.xlabel("critic value")
     plt.savefig(critic_file)
     plt.close()
