@@ -159,10 +159,10 @@ class TrainEpisodeLogger(Callback):
 
         nb_step_digits = str(
             int(np.ceil(np.log10(self.params['nb_steps']))))
-        template = "{step: " + nb_step_digits + "d}/{nb_steps}:"
-        template += " episode: {episode}, duration: {duration:.3f}s, "
+        template = "{step: " + nb_step_digits + "d}/{nb_steps}: "
+        template += "\033[32mepisode: {episode}\033[0m, duration: {duration:.3f}s, "
         template += "episode steps: {episode_steps}, steps per second: {sps:.0f}, "
-        template += "episode reward: {episode_reward:.3f}, mean reward: {reward_mean:.3f} [{reward_min:.3f}, {reward_max:.3f}], "
+        template += "\033[32mepisode reward: {episode_reward:.3f}\033[0m, mean reward: {reward_mean:.3f} [{reward_min:.3f}, {reward_max:.3f}], "
         template += "mean action: {action_mean:.3f} [{action_min:.3f}, {action_max:.3f}], mean observation: {obs_mean:.3f} [{obs_min:.3f}, {obs_max:.3f}], {metrics}"
         variables = {
             'step': self.step,

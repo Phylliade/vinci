@@ -267,7 +267,7 @@ class DDPGAgent(Agent):
         critic_filepath = filename + '_critic' + extension
         self.actor.load_weights(actor_filepath)
         self.critic.load_weights(critic_filepath)
-        self.update_target_models_hard()
+        self.hard_update_target_models()
 
     def save_weights(self, filepath, overwrite=False):
         filename, extension = os.path.splitext(filepath)
@@ -281,10 +281,10 @@ class DDPGAgent(Agent):
         self.actor.save(name + "_actor.h5")
         self.critic.save(name + "_critic.h5")
 
-    def update_target_critic_hard(self):
+    def hard_update_target_critic(self):
         self.target_critic.set_weights(self.critic.get_weights())
 
-    def update_target_actor_hard(self):
+    def hard_update_target_actor(self):
         self.target_actor.set_weights(self.actor.get_weights())
 
     def reset_states(self):
@@ -411,13 +411,13 @@ class DDPGAgent(Agent):
             # Hard update target networks, only if necessary
             if self.target_actor_update >= 1:
                 if hard_update_target_actor:
-                    self.update_target_actor_hard()
+                    self.hard_update_target_actor()
             else:
                 self.session.run(self.target_actor_train_fn)
             # Hard update target networks, only if necessary
             if self.target_critic_update >= 1:
                 if hard_update_target_critic:
-                    self.update_target_critic_hard()
+                    self.hard_update_target_critic()
             else:
                 self.session.run(self.target_critic_train_fn)
             return (metrics)
@@ -557,11 +557,13 @@ class DDPGAgent(Agent):
         """Restore from checkpoint"""
         weights_actor, weights_critic = self.checkpoints[checkpoint_id]
         if actor:
-            print("Restoring actor")
+            print("\033[31mRestoring actor\033[0m")
             self.actor.set_weights(weights_actor)
+            self.target_actor.set_weights(weights_actor)
         if critic:
-            print("Restoring critic")
+            print("\033[31mRestoring critic\033[0m")
             self.critic.set_weights(weights_critic)
+            self.target_critic.set_weights(weights_critic)
 
 
 def process_parameterization_variable(param):
