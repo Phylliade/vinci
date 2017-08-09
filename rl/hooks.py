@@ -53,17 +53,19 @@ class PortraitHook(Hook):
                 file_name = "portrait_test"
             file_name = "{}_".format(self.count) + file_name + ".png"
 
-            # Plot the phase portrait of the actor and the critic
-            portrait_actor(
-                self.agent.actor,
-                self.agent.env,
-                save_figure=True,
-                figure_file=("figures/actor/" + file_name))
-            portrait_critic(
-                self.agent.critic,
-                self.agent.env,
-                save_figure=True,
-                figure_file=("figures/critic/" + file_name))
+            # Only plot portraits for envs whose observation_space is 2-dimensional
+            if self.agent.env.observation_space.dim == 2:
+                # Plot the phase portrait of the actor and the critic
+                portrait_actor(
+                    self.agent.actor,
+                    self.agent.env,
+                    save_figure=True,
+                    figure_file=("figures/actor/" + file_name))
+                portrait_critic(
+                    self.agent.critic,
+                    self.agent.env,
+                    save_figure=True,
+                    figure_file=("figures/critic/" + file_name))
 
             # Plot the distribution of the actor and the critic
             plot_distribution(
@@ -84,18 +86,20 @@ class TrajectoryHook(Hook):
         self.trajectory = {"x": [], "y": []}
 
     def __call__(self):
-        self.trajectory["x"].append(self.agent.observation[0])
-        self.trajectory["y"].append(self.agent.observation[1])
+        # Only plot portraits for envs whose observation_space is 2-dimensional
+        if self.agent.env.observation_space.dim == 2:
+            self.trajectory["x"].append(self.agent.observation[0])
+            self.trajectory["y"].append(self.agent.observation[1])
 
-        if self.agent.done:
-            plot_trajectory(
-                self.trajectory,
-                self.agent.actor,
-                self.agent.env,
-                figure_file=("figures/trajectory/{}.png".format(self.count)))
-            # Flush the trajectories
-            self.trajectory["x"] = []
-            self.trajectory["y"] = []
+            if self.agent.done:
+                plot_trajectory(
+                    self.trajectory,
+                    self.agent.actor,
+                    self.agent.env,
+                    figure_file=("figures/trajectory/{}.png".format(self.count)))
+                # Flush the trajectories
+                self.trajectory["x"] = []
+                self.trajectory["y"] = []
 
 
 class TensorboardHook(Hook):

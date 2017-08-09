@@ -31,6 +31,7 @@ def portrait_actor(actor, env, figure=None, definition=50, plot=True, save_figur
         plt.scatter([0], [0])
         plt.xlabel(x_label)
         plt.ylabel(y_label)
+        plt.title("Actor phase portrait")
         if save_figure:
             # TODO: Create the directory if it doesn't exist
             plt.savefig(figure_file)
@@ -59,6 +60,7 @@ def portrait_critic(critic, env, figure=None, definition=50, plot=True, action=[
         plt.scatter([0], [0])
         plt.xlabel(x_label)
         plt.ylabel(y_label)
+        plt.title("Critic phase portrait")
         if save_figure:
             # TODO: Create the directory if it doesn't exist
             plt.savefig(figure_file)
@@ -104,11 +106,13 @@ def plot_distribution(actor, critic, env, actor_file="actor_distribution.png", c
     sb.distplot(distribution_actor)
     plt.ylabel("probability")
     plt.xlabel("action")
+    plt.title("Actor value distribution")
     plt.savefig(actor_file)
     plt.close()
 
     plt.figure(figsize=(10, 10))
     sb.distplot(distribution_critic)
     plt.xlabel("critic value")
+    plt.title("Critic value distribution")
     plt.savefig(critic_file)
     plt.close()
