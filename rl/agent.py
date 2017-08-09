@@ -9,7 +9,6 @@ import keras.backend as K
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 from rl.hooks import PortraitHook, TensorboardHook, TrajectoryHook, Hooks
-from rl.core import Processor
 
 
 # Global variables
@@ -36,16 +35,9 @@ class Agent(object):
     - `load_weights`
     - `save_weights`
     - `layers`
-
-    # Arguments
-        processor (`Processor` instance): See [Processor](#processor) for details.
     """
 
-    def __init__(self, processor=None):
-        # Use a default identity processor if not provided
-        if processor is None:
-            self.processor = Processor()
-
+    def __init__(self):
         # Use the same session as Keras
         self.session = K.get_session()
         # self.session = tf.Session()
@@ -66,7 +58,7 @@ class Agent(object):
 
         self.checkpoints = []
 
-    def compile(self, optimizer, metrics=[]):
+    def compile(self):
         """Compiles an agent and the underlaying models to be used for training and testing.
 
         # Arguments
@@ -264,8 +256,6 @@ class Agent(object):
 
                 # state_0 -- (foward) --> action
                 action = self.forward(observation_0)
-                # Process the action
-                action = self.processor.process_action(action)
 
                 # action -- (step) --> (reward, state_1, terminal)
                 # Apply the action
@@ -275,8 +265,6 @@ class Agent(object):
                     observation_1, r, self.done, info = env.step(action)
                     # observation_1 = deepcopy(observation_1)
 
-                    observation_1, r, self.done, info = self.processor.process_step(
-                        observation_1, r, self.done, info)
                     for key, value in info.items():
                         if not np.isreal(value):
                             continue
@@ -354,12 +342,9 @@ class Agent(object):
                 action = env.action_space.sample()
             else:
                 action = start_step_policy(observation)
-            action = self.processor.process_action(action)
             callbacks.on_action_begin(action)
             observation, reward, done, info = env.step(action)
             observation = deepcopy(observation)
-            observation, reward, done, info = self.processor.process_step(
-                observation, reward, done, info)
             callbacks.on_action_end(action)
 
             if done:
@@ -367,7 +352,6 @@ class Agent(object):
                     'Env ended before {} random steps could be performed at the start. You should probably lower the `nb_max_start_steps` parameter.'.
                     format(nb_random_start_steps))
                 observation = deepcopy(env.reset())
-                observation = self.processor.process_observation(observation)
                 break
         return (observation)
 
