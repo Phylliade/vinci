@@ -169,7 +169,8 @@ class DDPGAgent(Agent):
         critic_gradients_norms = [
             tf.norm(grad_var[0]) for grad_var in critic_gradient_vars
         ]
-        critic_gradient_norm = tf.reduce_sum(critic_gradients_norms)
+        self.variables["critic_gradient_norm"] = tf.reduce_sum(
+            critic_gradients_norms)
 
         self.critic_train_fn = critic_optimizer.apply_gradients(
             critic_gradient_vars)
@@ -208,7 +209,8 @@ class DDPGAgent(Agent):
         actor_gradients_norms = [
             tf.norm(grad_var[0]) for grad_var in actor_gradient_vars
         ]
-        actor_gradient_norm = tf.reduce_sum(actor_gradients_norms)
+        self.variables["actor_gradient_norm"] = tf.reduce_sum(
+            actor_gradients_norms)
 
         # The actual train function
         self.actor_train_fn = actor_optimizer.apply_gradients(
@@ -218,7 +220,8 @@ class DDPGAgent(Agent):
         self.critic_summaries.append(
             tf.summary.scalar("critic/loss", critic_loss))
         self.critic_summaries.append(
-            tf.summary.scalar("critic/gradient", critic_gradient_norm))
+            tf.summary.scalar("critic/gradient", self.variables[
+                "critic_gradient_norm"]))
         for var, norm in zip(self.critic.trainable_weights,
                              critic_gradients_norms):
             self.critic_summaries.append(
@@ -227,7 +230,8 @@ class DDPGAgent(Agent):
         self.actor_summaries.append(
             tf.summary.scalar("actor/loss", -actor_loss))
         self.actor_summaries.append(
-            tf.summary.scalar("actor/gradient", actor_gradient_norm))
+            tf.summary.scalar("actor/gradient", self.variables[
+                "actor_gradient_norm"]))
         for var, norm in zip(self.actor.trainable_weights,
                              actor_gradients_norms):
             self.actor_summaries.append(
@@ -251,6 +255,9 @@ class DDPGAgent(Agent):
         # self.session.run(tf.global_variables_initializer())
 
         self.merged_summary = tf.summary.merge_all()
+
+        # Save the initial values of the networks
+        self.checkpoint()
 
         self.compiled = True
 
@@ -362,10 +369,17 @@ class DDPGAgent(Agent):
             hard_update_target_actor = self.step % self.target_actor_update == 0
             hard_update_target_critic = self.step % self.target_critic_update == 0
 
+            # Whether to reset the actor
+            if self.done and (self.episode % 5 == 0):
+                can_reset_actor = True
+            else:
+                can_reset_actor = False
+
             if (fit_actor or fit_critic):
                 summaries = self.fit_controllers(
                     fit_critic=fit_critic,
                     fit_actor=fit_actor,
+                    can_reset_actor=can_reset_actor,
                     hard_update_target_critic=hard_update_target_critic,
                     hard_update_target_actor=hard_update_target_actor)
 
@@ -374,6 +388,7 @@ class DDPGAgent(Agent):
     def fit_controllers(self,
                         fit_critic=True,
                         fit_actor=True,
+                        can_reset_actor=False,
                         hard_update_target_critic=False,
                         hard_update_target_actor=False):
         """Fit the actor and critic networks"""
@@ -390,7 +405,7 @@ class DDPGAgent(Agent):
                 metrics += metrics_critic
 
             if fit_actor:
-                metrics_actor = self.fit_actor(batch)
+                metrics_actor = self.fit_actor(batch, can_reset_actor=can_reset_actor)
                 metrics += metrics_actor
 
             # Hard update target networks, only if necessary
@@ -462,7 +477,7 @@ class DDPGAgent(Agent):
 
         return (metrics)
 
-    def fit_actor(self, batch, sgd_iterations=1):
+    def fit_actor(self, batch, sgd_iterations=1, can_reset_actor=False):
         """Fit the actor network"""
         # TODO: implement metrics for actor
 
@@ -477,6 +492,17 @@ class DDPGAgent(Agent):
                 [self.actor_train_fn, self.actor_summaries],
                 feed_dict={self.state: batch.state_0,
                            K.learning_phase(): 1})
+
+        if can_reset_actor:
+            # Reset the actor if the gradient is flat
+            # FIXME: Use the metrics element instead of recomputing it
+            norm = self.session.run(
+                self.variables["actor_gradient_norm"],
+                feed_dict={self.state: batch.state_0,
+                           K.learning_phase(): 1})
+            if norm <= 0.3:
+                # TODO: Use a gradient on a rolling window: multiple steps (and even multiple episodes)
+                self.restore_checkpoint(actor=True, critic=False)
 
         return (metrics)
 
@@ -521,6 +547,21 @@ class DDPGAgent(Agent):
             terminal_1=terminal1_batch,
             state_1=state1_batch)
         return (batch)
+
+    def checkpoint(self):
+        """Save the weights"""
+        self.checkpoints.append((self.actor.get_weights(),
+                                 self.critic.get_weights()))
+
+    def restore_checkpoint(self, actor=True, critic=True, checkpoint_id=0):
+        """Restore from checkpoint"""
+        weights_actor, weights_critic = self.checkpoints[checkpoint_id]
+        if actor:
+            print("Restoring actor")
+            self.actor.set_weights(weights_actor)
+        if critic:
+            print("Restoring critic")
+            self.critic.set_weights(weights_critic)
 
 
 def process_parameterization_variable(param):

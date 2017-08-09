@@ -50,6 +50,9 @@ class Agent(object):
         self.session = K.get_session()
         # self.session = tf.Session()
 
+        # Internal TF variables
+        self.variables = {}
+
         # Setup hook variables
         self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
         self._hook_variables_optional = ["reward", "episode_reward", "observation"]
@@ -60,6 +63,8 @@ class Agent(object):
         # Persistent values
         self.step = 0
         self.episode = 0
+
+        self.checkpoints = []
 
     def compile(self, optimizer, metrics=[]):
         """Compiles an agent and the underlaying models to be used for training and testing.
@@ -83,7 +88,9 @@ class Agent(object):
              start_step_policy=None,
              log_interval=10000,
              nb_max_episode_steps=None,
-             reward_scaling=1.):
+             reward_scaling=1.,
+             plots=True,
+             tensorboard=True):
         """Trains the agent on the given environment.
 
         # Arguments
@@ -161,7 +168,6 @@ class Agent(object):
         else:
             callbacks._set_model(self)
         callbacks._set_env(env)
-
         if termination_criterion == STEPS_TERMINATION:
             params = {
                 'nb_steps': nb_steps,
@@ -177,7 +183,13 @@ class Agent(object):
             callbacks._set_params(params)
 
         # Initialize the Hooks
-        hooks = Hooks(self, [TensorboardHook(), PortraitHook(), TrajectoryHook()])
+        hooks_list = []
+        if tensorboard:
+            hooks_list.append(TensorboardHook())
+        if plots:
+            hooks_list.append(PortraitHook())
+            hooks_list.append(TrajectoryHook())
+        hooks = Hooks(self, hooks_list)
 
         # Define the termination criterion
         # Step and episode at which we satrt the function

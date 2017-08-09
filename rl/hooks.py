@@ -150,7 +150,7 @@ class Hooks:
 
         if hooks is not None:
             for hook in hooks:
-                hook._register(agent)
+                hook._register(agent=agent)
                 self.hooks.append(hook)
 
     def __call__(self):
