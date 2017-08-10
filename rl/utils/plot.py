@@ -103,7 +103,7 @@ def plot_distribution(actor, critic, env, actor_file="actor_distribution.png", c
     distribution_actor, distribution_critic = network_distribution(env, actor, critic)
 
     plt.figure(figsize=(10, 10))
-    sb.distplot(distribution_actor)
+    sb.distplot(distribution_actor, kde=False)
     plt.ylabel("probability")
     plt.xlabel("action")
     plt.title("Actor value distribution")
