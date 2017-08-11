@@ -124,7 +124,10 @@ class DDPGAgent(Agent):
         # Each network has summaries attached
         # Since they are trained in using different functions
         self.actor_summaries = []
+        self.actor_summaries_before = []
         self.critic_summaries = []
+        # Dictionaries to store metrics
+        self.metrics = {}
 
     @property
     def uses_learning_phase(self):
@@ -217,26 +220,28 @@ class DDPGAgent(Agent):
         self.actor_train_fn = actor_optimizer.apply_gradients(
             actor_gradient_vars)
 
-        # Collect metrics
-        self.critic_summaries.append(
-            tf.summary.scalar("critic/loss", critic_loss))
-        self.critic_summaries.append(
-            tf.summary.scalar("critic/gradient", self.variables[
-                "critic_gradient_norm"]))
+        # Collect summaries
+        self.critic_summaries.append(tf.summary.scalar(
+            "critic/loss", critic_loss))
+        self.critic_summaries.append(tf.summary.scalar(
+            "critic/gradient", self.variables["critic_gradient_norm"]))
         for var, norm in zip(self.critic.trainable_weights,
                              critic_gradients_norms):
-            self.critic_summaries.append(
-                tf.summary.scalar("critic/{}".format(var.name), norm))
+            var_name = "critic/{}".format(var.name)
+            self.critic_summaries.append(tf.summary.scalar(var_name, norm))
 
+        # Collect the objective as the opposite of the loss
         self.actor_summaries.append(
-            tf.summary.scalar("actor/loss", -actor_loss))
+            tf.summary.scalar("actor/objective", -actor_loss))
+        self.actor_summaries_before.append(
+            tf.summary.scalar("actor/objective_before", -actor_loss))
         self.actor_summaries.append(
             tf.summary.scalar("actor/gradient", self.variables[
                 "actor_gradient_norm"]))
         for var, norm in zip(self.actor.trainable_weights,
                              actor_gradients_norms):
-            self.actor_summaries.append(
-                tf.summary.scalar("actor/{}".format(var.name), norm))
+            var_name = "actor/{}".format(var.name)
+            self.actor_summaries.append((tf.summary.scalar(var_name, norm)))
 
         # FIXME: Use directly Keras backend
         # This is a kind of a hack
@@ -271,6 +276,7 @@ class DDPGAgent(Agent):
         self.hard_update_target_models()
 
     def save_weights(self, filepath, overwrite=False):
+        print("Saving weights")
         filename, extension = os.path.splitext(filepath)
         actor_filepath = filename + '_actor' + extension
         critic_filepath = filename + '_critic' + extension
@@ -325,7 +331,7 @@ class DDPGAgent(Agent):
         # action = self.select_action(state)
         action = self.select_action(observation)
 
-        return(action)
+        return (action)
 
     def backward(self,
                  observation_0,
@@ -335,14 +341,9 @@ class DDPGAgent(Agent):
                  terminal=False,
                  fit_actor=True,
                  fit_critic=True):
-
-        # Default values
-        metrics = [np.nan for _ in self.metrics_names]
-        summaries = []
-
         # Stop here if not training
         if not self.training:
-            return ((metrics, summaries))
+            return
 
         # Store most recent experience in memory.
         if self.step % self.memory_interval == 0:
@@ -368,14 +369,12 @@ class DDPGAgent(Agent):
                 can_reset_actor = False
 
             if (fit_actor or fit_critic):
-                summaries = self.fit_controllers(
+                self.fit_controllers(
                     fit_critic=fit_critic,
                     fit_actor=fit_actor,
                     can_reset_actor=can_reset_actor,
                     hard_update_target_critic=hard_update_target_critic,
                     hard_update_target_actor=hard_update_target_actor)
-
-        return ((metrics, summaries))
 
     def fit_controllers(self,
                         fit_critic=True,
@@ -391,14 +390,15 @@ class DDPGAgent(Agent):
         else:
             batch = self.get_batch()
 
-            metrics = []
+            summaries = []
             if fit_critic:
-                metrics_critic = self.fit_critic(batch)
-                metrics += metrics_critic
+                summaries_critic = self.fit_critic(batch)
+                summaries += summaries_critic
 
             if fit_actor:
-                metrics_actor = self.fit_actor(batch, can_reset_actor=can_reset_actor)
-                metrics += metrics_actor
+                summaries_actor = self.fit_actor(
+                    batch, can_reset_actor=can_reset_actor)
+                summaries += summaries_actor
 
             # Hard update target networks, only if necessary
             if self.target_actor_update >= 1:
@@ -412,7 +412,8 @@ class DDPGAgent(Agent):
                     self.hard_update_target_critic()
             else:
                 self.session.run(self.target_critic_train_fn)
-            return (metrics)
+
+            self.step_summaries += summaries
 
     def fit_critic(self, batch, sgd_iterations=1):
         """Fit the critic network"""
@@ -455,7 +456,7 @@ class DDPGAgent(Agent):
         # Perform a single batch update on the critic network.
         for _ in range(sgd_iterations):
             # FIXME: metrics collection won't work with more than one iteration
-            _, metrics = self.session.run(
+            _, summaries = self.session.run(
                 [self.critic_train_fn, self.critic_summaries],
                 feed_dict={
                     self.state: batch.state_0,
@@ -463,29 +464,39 @@ class DDPGAgent(Agent):
                     self.critic_target: critic_targets
                 })
 
-        return(metrics)
+        return(summaries)
 
     def fit_actor(self, batch, sgd_iterations=1, can_reset_actor=False):
         """Fit the actor network"""
         for _ in range(sgd_iterations):
+            feed_dict = {self.state: batch.state_0, K.learning_phase(): 1}
+            # Collect metrics before training the agent
+            self.metrics[
+                "actor_gradient_norm"], summaries_before = self.session.run(
+                    [
+                        self.variables["actor_gradient_norm"],
+                        self.actor_summaries_before
+                    ],
+                    feed_dict=feed_dict)
+
+            # Train the agent
+            self.session.run(self.actor_train_fn, feed_dict=feed_dict)
+
+            # Collect metrics after
             # FIXME: metrics collection won't work with more than one iteration
-            _, metrics = self.session.run(
-                [self.actor_train_fn, self.actor_summaries],
-                feed_dict={self.state: batch.state_0,
-                           K.learning_phase(): 1})
+            summaries_after = self.session.run(
+                self.actor_summaries, feed_dict=feed_dict)
+
+            summaries = summaries_before + summaries_after
 
         if can_reset_actor:
             # Reset the actor if the gradient is flat
-            # FIXME: Use the metrics element instead of recomputing it
-            norm = self.session.run(
-                self.variables["actor_gradient_norm"],
-                feed_dict={self.state: batch.state_0,
-                           K.learning_phase(): 1})
-            if norm <= 0.3:
+            # TODO: Compute the gradient norm directly in the train_fn function
+            if self.metrics["actor_gradient_norm"] <= 0.3:
                 # TODO: Use a gradient on a rolling window: multiple steps (and even multiple episodes)
                 self.restore_checkpoint(actor=True, critic=False)
 
-        return(metrics)
+        return (summaries)
 
     def get_batch(self):
         """

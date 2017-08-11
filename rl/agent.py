@@ -247,6 +247,7 @@ class Agent(object):
                 self.step += 1
                 self.episode_step += 1
                 self.reward = 0.
+                self.step_summaries = []
                 accumulated_info = {}
 
                 # Run a single step.
@@ -291,7 +292,7 @@ class Agent(object):
 
                 # Post step: training, callbacks and hooks
                 # Train the algorithm
-                metrics, self.step_summaries = self.backward(
+                self.backward(
                     observation_0,
                     action,
                     self.reward,
@@ -307,7 +308,8 @@ class Agent(object):
                     'action': action,
                     'observation': observation_1,
                     'reward': self.reward,
-                    'metrics': metrics,
+                    # For legacy callbacks upport
+                    'metrics': [],
                     'episode': self.episode,
                     'info': accumulated_info,
                 }
@@ -381,13 +383,22 @@ class Agent(object):
                     hard_update_target_critic=False,
                     hard_update_target_actor=False,
                     epochs=1,
-                    episode_length=20):
+                    episode_length=20,
+                    plots=True,
+                    tensorboard=True):
         """Train the networks in offline mode"""
 
         self.training = True
         self.done = True
 
-        hooks = Hooks(self, [TensorboardHook(), PortraitHook()])
+        # Initialize the Hooks
+        hooks_list = []
+        if tensorboard:
+            hooks_list.append(TensorboardHook())
+        if plots:
+            hooks_list.append(PortraitHook())
+            hooks_list.append(TrajectoryHook())
+        hooks = Hooks(self, hooks_list)
 
         # We could use a termination criterion, based on step instead of epoch, as in  _run
         for epoch in range(epochs):
@@ -400,9 +411,10 @@ class Agent(object):
             self.done = False
             self.step += 1
             self.episode_step += 1
+            self.step_summaries = []
 
             print("\rTraining epoch: {} ".format(epoch), end="")
-            self.step_summaries = self.fit_controllers(
+            self.fit_controllers(
                 fit_critic=fit_critic,
                 fit_actor=fit_actor,
                 hard_update_target_critic=hard_update_target_critic,
