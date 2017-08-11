@@ -227,6 +227,18 @@ class DDPGAgent(Agent):
         for (var_name, variable) in self.variables.items():
             self.summary_variables[var_name] = (tf.summary.scalar(
                 var_name, variable))
+        # Special selections of summary variables
+        # Critic
+        self.critic_summaries = [
+            value for (key, value) in self.summary_variables.items()
+            if key.startswith("critic/")
+        ]
+        # Actor
+        # No need to collect the actor's loss, since we already have actor/objective
+        self.actor_summaries = [
+            value for (key, value) in self.summary_variables.items()
+            if (key.startswith("actor/") and not key == ("actor/loss"))
+        ]
 
         # FIXME: Use directly Keras backend
         # This is a kind of a hack
@@ -247,16 +259,6 @@ class DDPGAgent(Agent):
 
         # Save the initial values of the networks
         self.checkpoint()
-
-        # For the sake of optimization, we assign these variables here, for once, instead of creating them at each fit_actor and fit_critic runs
-        self.critic_summaries = [
-            value for (key, value) in self.summary_variables.items()
-            if key.startswith("critic/")
-        ]
-        self.actor_summaries = [
-            value for (key, value) in self.summary_variables.items()
-            if (key.startswith("actor/") and not key == ("actor/loss"))
-        ]
 
         self.compiled = True
 
@@ -376,7 +378,6 @@ class DDPGAgent(Agent):
                         hard_update_target_critic=False,
                         hard_update_target_actor=False):
         """Fit the actor and critic networks"""
-        # TODO: Export metrics to tensorboard
 
         if not (fit_actor or fit_critic):
             return (None)
