@@ -108,7 +108,7 @@ def plot_distribution(actor, critic, env, actor_file="actor_distribution.png", c
 
 def plot_action_distribution(actions, file="action_ditribution.png"):
     plt.figure(figsize=(10, 10))
-    sb.distplot(actions)
+    sb.distplot(actions, kde=False)
     plt.ylabel("probability")
     plt.xlabel("action")
     plt.title("Action distribution")
