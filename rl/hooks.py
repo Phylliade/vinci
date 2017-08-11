@@ -1,4 +1,4 @@
-from rl.utils.plot import portrait_critic, portrait_actor, plot_trajectory, plot_distribution
+from rl.utils.plot import portrait_critic, portrait_actor, plot_trajectory, plot_distribution, plot_action_distribution
 import tensorflow as tf
 
 
@@ -48,10 +48,10 @@ class PortraitHook(Hook):
 
             # Get the file name
             if self.agent.training:
-                file_name = "portrait"
+                file_name = "{}.png"
             else:
-                file_name = "portrait_test"
-            file_name = "{}_".format(self.count) + file_name + ".png"
+                file_name = "test/{}.png"
+            file_name = file_name.format(self.count)
 
             # Only plot portraits for envs whose observation_space is 2-dimensional
             if self.agent.env.observation_space.dim == 2:
@@ -109,7 +109,7 @@ class TensorboardHook(Hook):
 
     def __call__(self):
         # Step summaries
-        for summary in self.agent.step_summaries:
+        for summary in list(self.agent.step_summaries):
             # FIXME: Use only one summary
             self.summary_writer.add_summary(summary, self.agent.step)
 
@@ -142,6 +142,21 @@ class ValidationHook(Hook):
                         format(variable)))
             # The test passed
             self.validated = True
+
+
+class MemoryDistributionHook(Hook):
+    def __call__(self):
+        if self.agent.done:
+            replay_buffer = self.agent.memory.dump()
+            # Collect every states and actions
+            actions = []
+            states = []
+
+            for experience in replay_buffer:
+                actions.append(experience.action)
+                states.append(experience.state0)
+
+            plot_action_distribution(actions, file="figures/memory/action/{}.png".format(self.count))
 
 
 class Hooks:

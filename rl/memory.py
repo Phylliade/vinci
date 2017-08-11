@@ -62,6 +62,10 @@ class RingBuffer(object):
             raise RuntimeError()
         self.data[(self.start + self.length - 1) % self.maxlen] = v
 
+    def dump(self):
+        """Get all of the data in a single array"""
+        return(self.data[:self.length])
+
 
 def zeroed_observation(observation):
     if hasattr(observation, 'shape'):
@@ -114,10 +118,15 @@ class SimpleMemory(object):
 
         return(memory)
 
-    def dump(self, file):
+    def save(self, file):
         """Dump the memory into a pickle file"""
+        print("Saving memory")
         with open(file, "wb") as fd:
             pickle.dump(self.buffer, fd)
+
+    def dump(self):
+        """Get the memory content as a single array"""
+        return(self.buffer.dump())
 
     def __len__(self):
         return(len(self.buffer))

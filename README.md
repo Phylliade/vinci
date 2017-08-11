@@ -86,4 +86,4 @@ out = keras_model(in)
 Some may wonder about some potential leaks with this usage, and they're right!
 With a traditional function, each time `keras_model(in)` is called, a new `Tensor` is created (and every underlying ops) and added to the Graph.
 
-But, Keras uses a cache for the computations, so each call to `keras_model(in)` always resulsts in the same variable.
+But, Keras uses a cache for the computations, so each call to `keras_model(in)` always results in the same variable.
