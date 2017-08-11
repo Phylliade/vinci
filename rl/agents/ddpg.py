@@ -120,15 +120,6 @@ class DDPGAgent(Agent):
         self.compiled = False
         self.reset_states()
 
-        # Tensorboard
-        # Each network has summaries attached
-        # Since they are trained in using different functions
-        self.actor_summaries = []
-        self.actor_summaries_before = []
-        self.critic_summaries = []
-        # Dictionaries to store metrics
-        self.metrics = {}
-
     @property
     def uses_learning_phase(self):
         return self.actor.uses_learning_phase or self.critic.uses_learning_phase
@@ -162,18 +153,23 @@ class DDPGAgent(Agent):
         critic_optimizer = tf.train.AdamOptimizer()
         self.critic_target = tf.placeholder(dtype=tf.float32, shape=(None, 1))
         # Clip the critic gradient using the huber loss
-        critic_loss = K.mean(
+        self.variables["critic/loss"] = K.mean(
             huber_loss(
                 self.critic([self.state, self.action]), self.critic_target,
                 self.delta_clip))
         critic_gradient_vars = critic_optimizer.compute_gradients(
-            critic_loss, var_list=self.critic.trainable_weights)
+            self.variables["critic/loss"],
+            var_list=self.critic.trainable_weights)
 
         # Compute the norm as a metric
         critic_gradients_norms = [
             tf.norm(grad_var[0]) for grad_var in critic_gradient_vars
         ]
-        self.variables["critic_gradient_norm"] = tf.reduce_sum(
+        for var, norm in zip(self.critic.trainable_weights,
+                             critic_gradients_norms):
+            var_name = "critic/{}/gradient_norm".format(var.name)
+            self.variables[var_name] = norm
+        self.variables["critic/gradient_norm"] = tf.reduce_sum(
             critic_gradients_norms)
 
         self.critic_train_fn = critic_optimizer.apply_gradients(
@@ -197,11 +193,13 @@ class DDPGAgent(Agent):
         actor_optimizer = tf.train.AdamOptimizer()
         # Be careful to negate the gradient
         # Since the optimizer wants to minimize the value
-        actor_loss = -tf.reduce_mean(
+        self.variables["actor/loss"] = -tf.reduce_mean(
             self.critic([self.state, self.actor(self.state)]))
+        self.variables["actor/objective"] = -self.variables["actor/loss"]
 
         actor_gradient_vars = actor_optimizer.compute_gradients(
-            actor_loss, var_list=self.actor.trainable_weights)
+            self.variables["actor/loss"],
+            var_list=self.actor.trainable_weights)
         # Gradient inverting
         # as described in https://arxiv.org/abs/1511.04143
         if self.invert_gradients:
@@ -209,39 +207,26 @@ class DDPGAgent(Agent):
                 x[0], self.gradient_inverter_min, self.gradient_inverter_max),
                                     x[1]) for x in actor_gradient_vars]
 
-        # Compute the norm as a metric
+        # Compute the norm of each weights's gradient
         actor_gradients_norms = [
             tf.norm(grad_var[0]) for grad_var in actor_gradient_vars
         ]
-        self.variables["actor_gradient_norm"] = tf.reduce_sum(
+        for var, norm in zip(self.actor.trainable_weights,
+                             actor_gradients_norms):
+            var_name = "actor/{}/gradient_norm".format(var.name)
+            self.variables[var_name] = (norm)
+        # As long as the sum
+        self.variables["actor/gradient_norm"] = tf.reduce_sum(
             actor_gradients_norms)
 
         # The actual train function
         self.actor_train_fn = actor_optimizer.apply_gradients(
             actor_gradient_vars)
 
-        # Collect summaries
-        self.critic_summaries.append(tf.summary.scalar(
-            "critic/loss", critic_loss))
-        self.critic_summaries.append(tf.summary.scalar(
-            "critic/gradient", self.variables["critic_gradient_norm"]))
-        for var, norm in zip(self.critic.trainable_weights,
-                             critic_gradients_norms):
-            var_name = "critic/{}".format(var.name)
-            self.critic_summaries.append(tf.summary.scalar(var_name, norm))
-
-        # Collect the objective as the opposite of the loss
-        self.actor_summaries.append(
-            tf.summary.scalar("actor/objective", -actor_loss))
-        self.actor_summaries_before.append(
-            tf.summary.scalar("actor/objective_before", -actor_loss))
-        self.actor_summaries.append(
-            tf.summary.scalar("actor/gradient", self.variables[
-                "actor_gradient_norm"]))
-        for var, norm in zip(self.actor.trainable_weights,
-                             actor_gradients_norms):
-            var_name = "actor/{}".format(var.name)
-            self.actor_summaries.append((tf.summary.scalar(var_name, norm)))
+        # Collect summaries directly from variables
+        for (var_name, variable) in self.variables.items():
+            self.summary_variables[var_name] = (tf.summary.scalar(
+                var_name, variable))
 
         # FIXME: Use directly Keras backend
         # This is a kind of a hack
@@ -260,10 +245,18 @@ class DDPGAgent(Agent):
         self.session.run(tf.variables_initializer(uninitialized_variables))
         # self.session.run(tf.global_variables_initializer())
 
-        self.merged_summary = tf.summary.merge_all()
-
         # Save the initial values of the networks
         self.checkpoint()
+
+        # For the sake of optimization, we assign these variables here, for once, instead of creating them at each fit_actor and fit_critic runs
+        self.critic_summaries = [
+            value for (key, value) in self.summary_variables.items()
+            if key.startswith("critic/")
+        ]
+        self.actor_summaries = [
+            value for (key, value) in self.summary_variables.items()
+            if (key.startswith("actor/") and not key == ("actor/loss"))
+        ]
 
         self.compiled = True
 
@@ -449,50 +442,44 @@ class DDPGAgent(Agent):
         # but only for the affected output units (as given by action_batch).
         discounted_reward_batch = self.gamma * target_q_values
         discounted_reward_batch *= batch.terminal_1
-        assert discounted_reward_batch.shape == batch.reward.shape
         critic_targets = (batch.reward + discounted_reward_batch).reshape(
             self.batch_size, 1)
 
-        # Perform a single batch update on the critic network.
-        for _ in range(sgd_iterations):
-            # FIXME: metrics collection won't work with more than one iteration
-            _, summaries = self.session.run(
-                [self.critic_train_fn, self.critic_summaries],
-                feed_dict={
-                    self.state: batch.state_0,
-                    self.action: batch.action,
-                    self.critic_target: critic_targets
-                })
+        feed_dict = {
+            self.state: batch.state_0,
+            self.action: batch.action,
+            self.critic_target: critic_targets
+        }
 
-        return(summaries)
+        # Collect summaries and metrics before training the critic
+        summaries = self.session.run(self.critic_summaries, feed_dict=feed_dict)
+
+        # Train the critic
+        for _ in range(sgd_iterations):
+            # FIXME: The intermediate gradient values are not captured
+            self.session.run(self.critic_train_fn, feed_dict=feed_dict)
+
+        return (summaries)
 
     def fit_actor(self, batch, sgd_iterations=1, can_reset_actor=False):
         """Fit the actor network"""
+
+        feed_dict = {self.state: batch.state_0, K.learning_phase(): 1}
+
+        # Collect metrics before training the actor
+        self.metrics[
+            "actor/gradient_norm"], summaries = self.session.run(
+                [self.variables["actor/gradient_norm"], self.actor_summaries],
+                feed_dict=feed_dict)
+
+        # Train the actor
         for _ in range(sgd_iterations):
-            feed_dict = {self.state: batch.state_0, K.learning_phase(): 1}
-            # Collect metrics before training the agent
-            self.metrics[
-                "actor_gradient_norm"], summaries_before = self.session.run(
-                    [
-                        self.variables["actor_gradient_norm"],
-                        self.actor_summaries_before
-                    ],
-                    feed_dict=feed_dict)
-
-            # Train the agent
+            # FIXME: The intermediate gradient values are not captured
             self.session.run(self.actor_train_fn, feed_dict=feed_dict)
-
-            # Collect metrics after
-            # FIXME: metrics collection won't work with more than one iteration
-            summaries_after = self.session.run(
-                self.actor_summaries, feed_dict=feed_dict)
-
-            summaries = summaries_before + summaries_after
 
         if can_reset_actor:
             # Reset the actor if the gradient is flat
-            # TODO: Compute the gradient norm directly in the train_fn function
-            if self.metrics["actor_gradient_norm"] <= 0.3:
+            if self.metrics["actor/gradient_norm"] <= 0.3:
                 # TODO: Use a gradient on a rolling window: multiple steps (and even multiple episodes)
                 self.restore_checkpoint(actor=True, critic=False)
 

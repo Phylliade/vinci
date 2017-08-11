@@ -42,8 +42,12 @@ class Agent(object):
         self.session = K.get_session()
         # self.session = tf.Session()
 
+        # Collected metrics
+        self.metrics = {}
         # Internal TF variables
         self.variables = {}
+        # And their corresponding summaries
+        self.summary_variables = {}
 
         # Setup hook variables
         self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
@@ -59,12 +63,7 @@ class Agent(object):
         self.checkpoints = []
 
     def compile(self):
-        """Compiles an agent and the underlaying models to be used for training and testing.
-
-        # Arguments
-            optimizer (`keras.optimizers.Optimizer` instance): The optimizer to be used during training.
-            metrics (list of functions `lambda y_true, y_pred: metric`): The metrics to run during training.
-        """
+        """Compiles an agent: Create the internal variables and populate the variables objects."""
         raise NotImplementedError()
 
     def _run(self,
