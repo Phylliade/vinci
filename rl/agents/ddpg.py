@@ -24,26 +24,24 @@ def mean_q(y_true, y_pred):
 
 class DDPGAgent(Agent):
     """
-    Deep Deterministic Policy Gradient Agent.
+    Deep Deterministic Policy Gradient Agent as defined in https://arxiv.org/abs/1509.02971.
 
-    :param nb_actions:
-    :param actions_low:
-    :param actions_high:
-    :param actor:
-    :param critic:
-    :param env:
-    :param memory:
-    :param gamma:
-    :param batch_size:
-    :param nb_steps_warmup_critic:
-    :param nb_steps_warmup_actor:
-    :param train_interval:
-    :param delta_range:
-    :param delta_clip:
-    :param random_process:
+    :param keras.model actor: The actor network
+    :param keras.model critic: The critic network
+    :param gym.env env: The gym environment
+    :param memory: The memory object
+    :type memory: :class:`rl.memory.Memory`
+    :param float gamma: Discount factor
+    :param int batch_size: Size of the minibatches
+    :param int nb_steps_warmup_critic: Number of warm-up steps for the critic. During these steps, there is no training
+    :param int nb_steps_warmup_actor: Number of warm-up steps for the actor. During these steps, there is no training
+    :param int train_interval: Train only at multiples of this number
+    :param delta_clip: Delta to which the rewards are clipped (via Huber loss, see https://github.com/devsisters/DQN-tensorflow/issues/16)
+    :param random_process: The noise used to perform exploration
     :param custom_model_objects:
-    :param target_critic_update:
-    :param target_actor_update:
+    :param float target_critic_update: Target critic update factor
+    :param float target_actor_update: Target actor update factor
+    :param bool invert_gradients: Use gradient inverting as defined in https://arxiv.org/abs/1511.04143
     """
 
     def __init__(self,
@@ -291,6 +289,7 @@ class DDPGAgent(Agent):
         self.target_critic.set_weights(self.critic.get_weights())
 
     def hard_update_target_actor(self):
+        print("Hard update of the target actor")
         self.target_actor.set_weights(self.actor.get_weights())
 
     def reset_states(self):
@@ -476,6 +475,7 @@ class DDPGAgent(Agent):
             self.action: batch.action,
             self.critic_target: critic_targets
         }
+        print(batch.state_0)
 
         # Collect summaries and metrics before training the critic
         summaries = self.session.run(
@@ -514,7 +514,7 @@ class DDPGAgent(Agent):
     def get_batch(self):
         """
         Get and process a batch
-        Split each a batch of experiences into batches of state_0, action etc...
+        Split each batch of experiences into batches of state_0, action etc...
         """
         # TODO: Remove this function
         # Store directly the different batches into memory
@@ -540,9 +540,6 @@ class DDPGAgent(Agent):
         terminal1_batch = np.array(terminal1_batch)
         reward_batch = np.array(reward_batch)
         action_batch = np.array(action_batch)
-        assert reward_batch.shape == (self.batch_size, )
-        assert terminal1_batch.shape == reward_batch.shape
-        assert action_batch.shape == (self.batch_size, self.nb_actions)
 
         batch = Batch(
             state_0=state0_batch,

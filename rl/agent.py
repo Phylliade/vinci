@@ -229,14 +229,14 @@ class Agent(object):
                 # (forward step) and then use the reward to improve (backward step).
 
                 # state_0 -- (foward) --> action
-                action = self.forward(observation_0)
+                action = self.forward(self.observation)
 
                 # action -- (step) --> (reward, state_1, terminal)
                 # Apply the action
                 # With repetition, if necesarry
                 for _ in range(action_repetition):
                     callbacks.on_action_begin(action)
-                    observation_1, r, self.done, info = env.step(action)
+                    self.observation_1, r, self.done, info = env.step(action)
                     # observation_1 = deepcopy(observation_1)
 
                     for key, value in info.items():
@@ -274,7 +274,7 @@ class Agent(object):
                 # Collect statistics
                 step_logs = {
                     'action': action,
-                    'observation': observation_1,
+                    'observation': self.observation_1,
                     'reward': self.reward,
                     # For legacy callbacks upport
                     'metrics': [],
