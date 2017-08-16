@@ -336,6 +336,13 @@ class DDPGAgent(Agent):
                  offline=False,
                  fit_actor=True,
                  fit_critic=True):
+        """
+        Backward method of the DDPG agent
+
+        :param offline: Add
+        :param fit_actor: Activate of Deactivate training of the actor
+        :param fit_critic: Activate of Deactivate training of the critic
+        """
         # Stop here if not training
         if not self.training:
             return
@@ -387,7 +394,14 @@ class DDPGAgent(Agent):
                         can_reset_actor=False,
                         hard_update_target_critic=False,
                         hard_update_target_actor=False):
-        """Fit the actor and critic networks"""
+        """
+        Fit the actor and critic networks
+
+        :param bool fit_critic: Whether to fit the critic
+        :param bool fit_actor: Whether to fit the actor
+        :param bool can_reset_actor:
+
+        """
 
         if not (fit_actor or fit_critic):
             return
