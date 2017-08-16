@@ -65,6 +65,7 @@ class DDPGAgent(Agent):
                  invert_gradients=False,
                  gradient_inverter_min=-1.,
                  gradient_inverter_max=1.,
+                 actor_reset_threshold=0.3,
                  **kwargs):
 
         if custom_model_objects is None:
@@ -110,6 +111,7 @@ class DDPGAgent(Agent):
         if invert_gradients:
             self.gradient_inverter_max = gradient_inverter_max
             self.gradient_inverter_min = gradient_inverter_min
+        self.actor_reset_threshold = actor_reset_threshold
 
         # Related objects.
         self.actor = actor
@@ -151,6 +153,7 @@ class DDPGAgent(Agent):
 
         # Compile the critic optimizer
         critic_optimizer = tf.train.AdamOptimizer()
+        # NOT to be mistaken with the target_critic!
         self.critic_target = tf.placeholder(dtype=tf.float32, shape=(None, 1))
         # Clip the critic gradient using the huber loss
         self.variables["critic/loss"] = K.mean(
@@ -284,6 +287,7 @@ class DDPGAgent(Agent):
         self.critic.save(name + "_critic.h5")
 
     def hard_update_target_critic(self):
+        print("Hard update of the target critic")
         self.target_critic.set_weights(self.critic.get_weights())
 
     def hard_update_target_actor(self):
@@ -329,11 +333,7 @@ class DDPGAgent(Agent):
         return (action)
 
     def backward(self,
-                 observation_0,
-                 action,
-                 reward,
-                 observation_1,
-                 terminal=False,
+                 offline=False,
                  fit_actor=True,
                  fit_critic=True):
         # Stop here if not training
@@ -341,21 +341,31 @@ class DDPGAgent(Agent):
             return
 
         # Store most recent experience in memory.
-        if self.step % self.memory_interval == 0:
-            self.memory.append(observation_0, action, reward, observation_1,
-                               terminal)
+        # Nothing to store in offline mode
+        if not offline:
+            if self.step % self.memory_interval == 0:
+                self.memory.append(self.observation_0, self.action, self.reward,
+                                   self.observation_1, self.done)
 
-        # Train the network on a single stochastic batch.
+        # Train the networks
         if self.step % self.train_interval == 0:
-            # Update critic, if warm up is over.
+
+            # If warm up is over:
+            # Update critic
             fit_critic = (fit_critic and
                           self.step > self.nb_steps_warmup_critic)
-            # Update critic, if warm up is over.
+            # Update actor
             fit_actor = (fit_actor and self.step > self.nb_steps_warmup_actor)
 
             # Hard update the target nets if necessary
-            hard_update_target_actor = self.step % self.target_actor_update == 0
-            hard_update_target_critic = self.step % self.target_critic_update == 0
+            if self.target_actor_update >= 1:
+                hard_update_target_actor = self.step % self.target_actor_update == 0
+            else:
+                hard_update_target_actor = False
+            if self.target_critic_update >= 1:
+                hard_update_target_critic = self.step % self.target_critic_update == 0
+            else:
+                hard_update_target_critic = False
 
             # Whether to reset the actor
             if self.done and (self.episode % 5 == 0):
@@ -380,11 +390,13 @@ class DDPGAgent(Agent):
         """Fit the actor and critic networks"""
 
         if not (fit_actor or fit_critic):
-            return (None)
+            return
         else:
             batch = self.get_batch()
 
             summaries = []
+
+            # Train networks
             if fit_critic:
                 summaries_critic = self.fit_critic(batch)
                 summaries += summaries_critic
@@ -394,13 +406,12 @@ class DDPGAgent(Agent):
                     batch, can_reset_actor=can_reset_actor)
                 summaries += summaries_actor
 
-            # Hard update target networks, only if necessary
+            # Update target networks
             if self.target_actor_update >= 1:
                 if hard_update_target_actor:
                     self.hard_update_target_actor()
             else:
                 self.session.run(self.target_actor_train_fn)
-            # Hard update target networks, only if necessary
             if self.target_critic_update >= 1:
                 if hard_update_target_critic:
                     self.hard_update_target_critic()
@@ -453,7 +464,8 @@ class DDPGAgent(Agent):
         }
 
         # Collect summaries and metrics before training the critic
-        summaries = self.session.run(self.critic_summaries, feed_dict=feed_dict)
+        summaries = self.session.run(
+            self.critic_summaries, feed_dict=feed_dict)
 
         # Train the critic
         for _ in range(sgd_iterations):
@@ -468,10 +480,9 @@ class DDPGAgent(Agent):
         feed_dict = {self.state: batch.state_0, K.learning_phase(): 1}
 
         # Collect metrics before training the actor
-        self.metrics[
-            "actor/gradient_norm"], summaries = self.session.run(
-                [self.variables["actor/gradient_norm"], self.actor_summaries],
-                feed_dict=feed_dict)
+        self.metrics["actor/gradient_norm"], summaries = self.session.run(
+            [self.variables["actor/gradient_norm"], self.actor_summaries],
+            feed_dict=feed_dict)
 
         # Train the actor
         for _ in range(sgd_iterations):
@@ -480,7 +491,7 @@ class DDPGAgent(Agent):
 
         if can_reset_actor:
             # Reset the actor if the gradient is flat
-            if self.metrics["actor/gradient_norm"] <= 0.3:
+            if self.metrics["actor/gradient_norm"] <= self.actor_reset_threshold:
                 # TODO: Use a gradient on a rolling window: multiple steps (and even multiple episodes)
                 self.restore_checkpoint(actor=True, critic=False)
 

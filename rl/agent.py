@@ -291,12 +291,7 @@ class Agent(object):
 
                 # Post step: training, callbacks and hooks
                 # Train the algorithm
-                self.backward(
-                    observation_0,
-                    action,
-                    self.reward,
-                    observation_1,
-                    terminal=self.done)
+                self.backward()
 
                 # Hooks
                 hooks()
@@ -377,14 +372,11 @@ class Agent(object):
         return(self._run(training=False, **kwargs))
 
     def fit_offline(self,
-                    fit_critic=True,
-                    fit_actor=True,
-                    hard_update_target_critic=False,
-                    hard_update_target_actor=False,
                     epochs=1,
                     episode_length=20,
                     plots=True,
-                    tensorboard=True):
+                    tensorboard=True,
+                    **kwargs):
         """Train the networks in offline mode"""
 
         self.training = True
@@ -412,17 +404,16 @@ class Agent(object):
             self.episode_step += 1
             self.step_summaries = []
 
-            print("\rTraining epoch: {} ".format(epoch), end="")
-            self.fit_controllers(
-                fit_critic=fit_critic,
-                fit_actor=fit_actor,
-                hard_update_target_critic=hard_update_target_critic,
-                hard_update_target_actor=hard_update_target_actor)
-
+            # Finish the step
             if (epoch % episode_length == 0):
                 self.done = True
 
             # Post step
+            # Train the networks
+            print("\rTraining epoch: {}/{} ".format(epoch + 1, epochs), end="")
+            self.backward(offline=True)
+
+            # Hooks
             hooks()
 
     def reset_states(self):
@@ -441,21 +432,18 @@ class Agent(object):
         """
         raise NotImplementedError()
 
-    def backward(self, observation_0, action, reward, observation_1, terminal):
+    def backward(self, **kwargs):
         """
-        Train the agent controller according to the training strategy.
-
-        # Argument
-            reward (float): The observed reward after executing the action returned by `forward`.
-            terminal (boolean): `True` if the new state of the environment is terminal.
+        Train the agent controllers by using the training strategy.
+        In general, backward is a wrapper around fit_controllers: It selects which controlers to train (e.g. actor, critic, memory)
         """
         raise NotImplementedError()
 
-    def fit_controllers(self):
+    def fit_controllers(self, **kwargs):
         """
         Train the agent controllers
 
-        This is an internal method used to directly train the controllers. There is no learning strategy.
+        This is an internal method used to directly train the controllers. The learning strategy
         It should be used by backward.
         """
         raise(NotImplementedError())
