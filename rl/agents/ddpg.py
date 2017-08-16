@@ -36,6 +36,7 @@ class DDPGAgent(Agent):
     :param int nb_steps_warmup_critic: Number of warm-up steps for the critic. During these steps, there is no training
     :param int nb_steps_warmup_actor: Number of warm-up steps for the actor. During these steps, there is no training
     :param int train_interval: Train only at multiples of this number
+    :param int memory_interval: Add experiences to memory only at multiples of this number
     :param delta_clip: Delta to which the rewards are clipped (via Huber loss, see https://github.com/devsisters/DQN-tensorflow/issues/16)
     :param random_process: The noise used to perform exploration
     :param custom_model_objects:
@@ -58,7 +59,8 @@ class DDPGAgent(Agent):
                  delta_clip=np.inf,
                  random_process=None,
                  custom_model_objects=None,
-                 target_critic_update=.001,
+                 target_critic_update=1e-3,
+                 # FIXME: Use 1e-4 as stated in reproducinility paper
                  target_actor_update=1,
                  invert_gradients=False,
                  gradient_inverter_min=-1.,
@@ -84,8 +86,8 @@ class DDPGAgent(Agent):
         super(DDPGAgent, self).__init__(**kwargs)
 
         # Get placeholders
-        self.state = env.state
-        self.action = env.action
+        self.variables["state"] = env.state
+        self.variables["action"] = env.action
 
         # Parameters.
         self.env = env
@@ -156,7 +158,7 @@ class DDPGAgent(Agent):
         # Clip the critic gradient using the huber loss
         self.variables["critic/loss"] = K.mean(
             huber_loss(
-                self.critic([self.state, self.action]), self.critic_target,
+                self.critic([self.variables["state"], self.variables["action"]]), self.critic_target,
                 self.delta_clip))
         critic_gradient_vars = critic_optimizer.compute_gradients(
             self.variables["critic/loss"],
@@ -195,7 +197,7 @@ class DDPGAgent(Agent):
         # Be careful to negate the gradient
         # Since the optimizer wants to minimize the value
         self.variables["actor/loss"] = -tf.reduce_mean(
-            self.critic([self.state, self.actor(self.state)]))
+            self.critic([self.variables["state"], self.actor(self.variables["state"])]))
         self.variables["actor/objective"] = -self.variables["actor/loss"]
 
         actor_gradient_vars = actor_optimizer.compute_gradients(
@@ -308,8 +310,8 @@ class DDPGAgent(Agent):
         # We get a batch of 1 action
         # action = self.actor.predict_on_batch(batch_state)[0]
         action = self.session.run(
-            self.actor(self.state),
-            feed_dict={self.state: batch_state,
+            self.actor(self.variables["state"]),
+            feed_dict={self.variables["state"]: batch_state,
                        K.learning_phase(): 0})[0]
         assert action.shape == (self.nb_actions, )
 
@@ -338,9 +340,9 @@ class DDPGAgent(Agent):
         """
         Backward method of the DDPG agent
 
-        :param offline: Add
-        :param fit_actor: Activate of Deactivate training of the actor
-        :param fit_critic: Activate of Deactivate training of the critic
+        :param bool offline: Add the new experiences to memory
+        :param bool fit_actor: Activate of Deactivate training of the actor
+        :param bool fit_critic: Activate of Deactivate training of the critic
         """
         # Stop here if not training
         if not self.training:
@@ -350,7 +352,7 @@ class DDPGAgent(Agent):
         # Nothing to store in offline mode
         if not offline:
             if self.step % self.memory_interval == 0:
-                self.memory.append(self.observation_0, self.action, self.reward,
+                self.memory.append(self.observation, self.action, self.reward,
                                    self.observation_1, self.done)
 
         # Train the networks
@@ -441,8 +443,8 @@ class DDPGAgent(Agent):
             target_actions = self.target_actor.predict_on_batch(batch.state_1)
         else:
             target_actions = self.session.run(
-                self.target_actor(self.state),
-                feed_dict={self.state: batch.state_1,
+                self.target_actor(self.variables["state"]),
+                feed_dict={self.variables["state"]: batch.state_1,
                            K.learning_phase(): 0})
         assert target_actions.shape == (self.batch_size, self.nb_actions)
 
@@ -453,10 +455,10 @@ class DDPGAgent(Agent):
                 [batch.state_1, target_actions]).flatten()
         else:
             target_q_values = self.session.run(
-                self.target_critic([self.state, self.action]),
+                self.target_critic([self.variables["state"], self.variables["action"]]),
                 feed_dict={
-                    self.state: batch.state_1,
-                    self.action: target_actions
+                    self.variables["state"]: batch.state_1,
+                    self.variables["action"]: target_actions
                 }).flatten()
 
         # Also works
@@ -471,11 +473,10 @@ class DDPGAgent(Agent):
             self.batch_size, 1)
 
         feed_dict = {
-            self.state: batch.state_0,
-            self.action: batch.action,
+            self.variables["state"]: batch.state_0,
+            self.variables["action"]: batch.action,
             self.critic_target: critic_targets
         }
-        print(batch.state_0)
 
         # Collect summaries and metrics before training the critic
         summaries = self.session.run(
@@ -491,7 +492,7 @@ class DDPGAgent(Agent):
     def fit_actor(self, batch, sgd_iterations=1, can_reset_actor=False):
         """Fit the actor network"""
 
-        feed_dict = {self.state: batch.state_0, K.learning_phase(): 1}
+        feed_dict = {self.variables["state"]: batch.state_0, K.learning_phase(): 1}
 
         # Collect metrics before training the actor
         self.metrics["actor/gradient_norm"], summaries = self.session.run(
@@ -535,8 +536,8 @@ class DDPGAgent(Agent):
             terminal1_batch.append(0. if e.terminal1 else 1.)
 
         # Prepare and validate parameters.
-        state0_batch = state0_batch
-        state1_batch = state1_batch
+        state0_batch = np.array(state0_batch)
+        state1_batch = np.array(state1_batch)
         terminal1_batch = np.array(terminal1_batch)
         reward_batch = np.array(reward_batch)
         action_batch = np.array(action_batch)

@@ -178,10 +178,11 @@ class Agent(object):
         self.done = True
         did_abort = False
         # Define these for clarification, not mandatory:
-        # Where observation_0: Observation before the step
+        # Where observation: Observation before the step
         # observation_1: Observation after the step
-        self.observation_0 = None
+        self.observation = None
         self.observation_1 = None
+        self.action = None
         self.step_summaries = None
 
         try:
@@ -229,14 +230,14 @@ class Agent(object):
                 # (forward step) and then use the reward to improve (backward step).
 
                 # state_0 -- (foward) --> action
-                action = self.forward(self.observation)
+                self.action = self.forward(self.observation)
 
                 # action -- (step) --> (reward, state_1, terminal)
                 # Apply the action
                 # With repetition, if necesarry
                 for _ in range(action_repetition):
-                    callbacks.on_action_begin(action)
-                    self.observation_1, r, self.done, info = env.step(action)
+                    callbacks.on_action_begin(self.action)
+                    self.observation_1, r, self.done, info = env.step(self.action)
                     # observation_1 = deepcopy(observation_1)
 
                     for key, value in info.items():
@@ -245,7 +246,7 @@ class Agent(object):
                         if key not in accumulated_info:
                             accumulated_info[key] = np.zeros_like(value)
                         accumulated_info[key] += value
-                    callbacks.on_action_end(action)
+                    callbacks.on_action_end(self.action)
 
                     self.reward += r
 
@@ -273,7 +274,7 @@ class Agent(object):
                 # Callbacks
                 # Collect statistics
                 step_logs = {
-                    'action': action,
+                    'action': self.action,
                     'observation': self.observation_1,
                     'reward': self.reward,
                     # For legacy callbacks upport

@@ -5,7 +5,8 @@ import tensorflow as tf
 class Hook:
     """
     The abstract Hook class.
-    A hook is designed to be a callable running on an agent object. It shouldn't return anything and instead exports the data itself (e.g. pickle, image)
+    A hook is designed to be a callable running on an agent object. It shouldn't return anything and instead exports the data itself (e.g. pickle, image).
+    It is run at the end of **each step**.
 
     The hook API relies on the following agent attributes, always available:
 
@@ -14,9 +15,14 @@ class Hook:
     * agent.reward: The reward of the current step
     * agent.episode: int: The current episode. Begins to 1.
     * agent.episode_step: int: The step count in the current episode. Begins to 1.
-    * agent.episode_reward: The cumulated reward of the current episode
     * agent.done: Whether the episode is terminated
     * agent.step_summaries: A list of summaries of the current step
+
+    These variables may also be available:
+    * agent.episode_reward: The cumulated reward of the current episode
+    * agent.observation: The observation at the beginning of the step
+    * agent.observation_1: The observation at the end of the step
+    * agent.action: The action taken during the step
 
     :param agent: the RL agent
     :param episodic: Whether the hook will use episode information
