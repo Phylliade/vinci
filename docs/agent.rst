@@ -3,3 +3,4 @@
 
 .. automodule:: rl.agent
    :members:
+   :private-members:

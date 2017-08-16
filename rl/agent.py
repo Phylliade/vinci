@@ -17,25 +17,7 @@ EPISODES_TERMINATION = 2
 
 
 class Agent(object):
-    """Abstract base class for all implemented agents.
-
-    Each agent interacts with the environment (as defined by the `Env` class) by first observing the
-    state of the environment. Based on this observation the agent changes the environment by performing
-    an action.
-
-    Do not use this abstract base class directly but instead use one of the concrete agents implemented.
-    Each agent realizes a reinforcement learning algorithm. Since all agents conform to the same
-    interface, you can use them interchangeably.
-
-    To implement your own agent, you have to implement the following methods:
-
-    - `forward`
-    - `backward`
-    - `compile`
-    - `load_weights`
-    - `save_weights`
-    - `layers`
-    """
+    """Generic agent class"""
 
     def __init__(self):
         # Use the same session as Keras
@@ -82,36 +64,28 @@ class Agent(object):
              reward_scaling=1.,
              plots=True,
              tensorboard=True):
-        """Trains the agent on the given environment.
+        """
+        Run steps until termination.
+        This method shouldn't be called directly, but instead called in :func:`fit` and :func:`test`
 
-        # Arguments
-            env: (`Env` instance): Environment that the agent interacts with. See [Env](#env) for details.
-            nb_steps (integer): Number of training steps to be performed.
-            nb_episodes (integer): Number of episodes to perform
-            training (boolean): Whether to train or test the agent
-            action_repetition (integer): Number of times the agent repeats the same action without
-                observing the environment again. Setting this to a value > 1 can be useful
-                if a single action only has a very small effect on the environment.
-            callbacks (list of `keras.callbacks.Callback` or `rl.callbacks.Callback` instances):
-                List of callbacks to apply during training. See [callbacks](/callbacks) for details.
-            verbose (integer): 0 for no logging, 1 for interval logging (compare `log_interval`), 2 for episode logging
-            visualize (boolean): If `True`, the environment is visualized during training. However,
-                this is likely going to slow down training significantly and is thus intended to be
-                a debugging instrument.
-            nb_max_start_steps (integer): Number of maximum steps that the agent performs at the beginning
-                of each episode using `start_step_policy`. Notice that this is an upper limit since
-                the exact number of steps to be performed is sampled uniformly from [0, max_start_steps]
-                at the beginning of each episode.
-            start_step_policy (`lambda observation: action`): The policy
-                to follow if `nb_max_start_steps` > 0. If set to `None`, a random action is performed.
-            log_interval (integer): If `verbose` = 1, the number of steps that are considered to be an interval.
-            nb_max_episode_steps (integer): Number of steps per episode that the agent performs before
-                automatically resetting the environment. Set to `None` if each episode should run
-                (potentially indefinitely) until the environment signals a terminal state.
-            reward_scaling (float): The amount with which the reward will be scaled
+        Termination can be either:
 
-        # Returns
-            A `keras.callbacks.History` instance that recorded the entire training process.
+        * Maximal number of steps
+        * Maximal number of episodes
+
+        :param nb_steps: Number of steps before termination.
+        :param nb_episodes: Number of episodes before termination.
+        :param bool training: Whether to train or test the agent. Not available for the :func:`fit` and :func:`test` methods.
+        :param int action_repetition: Number of times the action is repeated for each step.
+        :param callbacks:
+        :param int verbose: 0 for no logging, 1 for interval logging (compare `log_interval`), 2 for episode logging
+        :param bool visualize: Render the environment in realtime. This slows down by a big factor (up to 100) the function.
+        :param nb_max_start_steps:
+        :param start_step_policy: (`lambda observation: action`): The policy to follow if `nb_max_start_steps` > 0. If set to `None`, a random action is performed.
+        :param log_interval:
+        :param reward_scaling:
+        :param plots: Plot metrics during training.
+        :param tensorboard: Export metrics to tensorboard.
         """
         if not self.compiled:
             raise RuntimeError(
@@ -206,8 +180,8 @@ class Agent(object):
         # Define these for clarification, not mandatory:
         # Where observation_0: Observation before the step
         # observation_1: Observation after the step
-        observation_0 = None
-        observation_1 = None
+        self.observation_0 = None
+        self.observation_1 = None
         self.step_summaries = None
 
         try:
@@ -236,7 +210,7 @@ class Agent(object):
                 else:
                     # We are in the middle of an episode
                     # Update the observation
-                    observation_0 = observation_1
+                    observation_0 = self.observation_1
                     # Increment the episode step
 
                 # FIXME: Use only one of the two variables
@@ -353,21 +327,15 @@ class Agent(object):
 
     def fit(self, **kwargs):
         """
-        Train the agent on the given environment.
-
-        # Arguments
-            env: (`Env` instance): Environment that the agent interacts with. See [Env](#env) for details.
-            nb_steps (integer): Number of training steps to be performed.
-            or nb_episodes
-        # Returns
-            A `keras.callbacks.History` instance that recorded the entire training process.
+        Train the agent. On the contrary of :func:`test`, learning is involved
+        See :func:`_run` for the argument list.
         """
         return(self._run(training=True, **kwargs))
 
     def test(self, **kwargs):
         """
-        Test the agent on the given environment.
-        In training mode, noise is removed.
+        Test the agent. On the contrary of :func:`fit`, no learning is involved
+        Also, noise is removed.
         """
         return(self._run(training=False, **kwargs))
 
@@ -421,14 +389,12 @@ class Agent(object):
         pass
 
     def forward(self, observation):
-        """Takes the an observation from the environment and returns the action to be taken next.
+        """
+        Takes the an observation from the environment and returns the action to be taken next.
         If the policy is implemented by a neural network, this corresponds to a forward (inference) pass.
 
-        # Argument
-            observation (object): The current observation from the environment.
-
-        # Returns
-            The next action to be executed in the environment.
+        :param observation: The observation from which we want an action
+        :return: The desired action
         """
         raise NotImplementedError()
 
@@ -443,25 +409,24 @@ class Agent(object):
         """
         Train the agent controllers
 
-        This is an internal method used to directly train the controllers. The learning strategy
-        It should be used by backward.
+        This is an internal method used to directly train the controllers. The learning strategy is defined by :func:`backward`.
         """
         raise(NotImplementedError())
 
     def load_weights(self, filepath):
-        """Loads the weights of an agent from an HDF5 file.
+        """
+        Loads the weights of an agent from an HDF5 file.
 
-        # Arguments
-            filepath (str): The path to the HDF5 file.
+        :param str filepath: The path to the HDF5 file.
         """
         raise NotImplementedError()
 
     def save_weights(self, filepath, overwrite=False):
-        """Saves the weights of an agent as an HDF5 file.
+        """
+        Saves the weights of an agent as an HDF5 file.
 
-        # Arguments
-            filepath (str): The path to where the weights should be saved.
-            overwrite (boolean): If `False` and `filepath` already exists, raises an error.
+        :param str filepath: The path to where the weights should be saved.
+        :param bool overwrite: If `False` and `filepath` already exists, raises an error.
         """
         raise NotImplementedError()
 
