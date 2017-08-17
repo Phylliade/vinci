@@ -1,1 +1,1 @@
-from rl.agents import DDPG
+from rl.agents.ddpg import DDPGAgent
