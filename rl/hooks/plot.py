@@ -1,4 +1,4 @@
-from .hooks import Hook
+from .hook import Hook
 from rl.utils.plot import portrait_critic, portrait_actor, plot_trajectory, plot_distribution, plot_action_distribution
 
 
