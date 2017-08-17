@@ -57,7 +57,7 @@ class DDPGAgent(Agent):
                  random_process=None,
                  custom_model_objects=None,
                  target_critic_update=1e-3,
-                 # FIXME: Use 1e-4 as stated in reproducinility paper
+                 # FIXME: Use 1e-4 as stated in reproducibility paper
                  target_actor_update=1e-3,
                  invert_gradients=False,
                  gradient_inverter_min=-1.,
@@ -172,20 +172,38 @@ class DDPGAgent(Agent):
         self.variables["critic/gradient_norm"] = tf.reduce_sum(
             critic_gradients_norms)
 
-        self.critic_train_fn = critic_optimizer.apply_gradients(
+        self.critic_train_op = critic_optimizer.apply_gradients(
             critic_gradient_vars)
+
+        # Additional critic metrics
+        critic_norms = [tf.norm(weight) for weight in self.critic.trainable_weights]
+        for var, norm in zip(self.critic.trainable_weights,
+                             critic_norms):
+            var_name = "critic/{}/norm".format(var.name)
+            self.variables[var_name] = norm
+        self.variables["critic/norm"] = tf.reduce_sum(
+            critic_norms)
+
+        # Additional target critic metrics
+        target_critic_norms = [tf.norm(weight) for weight in self.target_critic.trainable_weights]
+        for var, norm in zip(self.target_critic.trainable_weights,
+                             target_critic_norms):
+            var_name = "target_critic/{}/norm".format(var.name)
+            self.variables[var_name] = norm
+        self.variables["target_critic/norm"] = tf.reduce_sum(
+            critic_norms)
 
         # Target critic optimizer
         if self.target_critic_update < 1.:
             # Include soft target model updates.
-            self.target_critic_train_fn = get_soft_target_model_ops(
+            self.target_critic_train_op = get_soft_target_model_ops(
                 self.target_critic.weights, self.critic.weights,
                 self.target_critic_update)
 
         # Target actor optimizer
         if self.target_actor_update < 1.:
             # Include soft target model updates.
-            self.target_actor_train_fn = get_soft_target_model_ops(
+            self.target_actor_train_op = get_soft_target_model_ops(
                 self.target_actor.weights, self.actor.weights,
                 self.target_actor_update)
 
@@ -219,9 +237,27 @@ class DDPGAgent(Agent):
         self.variables["actor/gradient_norm"] = tf.reduce_sum(
             actor_gradients_norms)
 
-        # The actual train function
-        self.actor_train_fn = actor_optimizer.apply_gradients(
+        # The actual train op
+        self.actor_train_op = actor_optimizer.apply_gradients(
             actor_gradient_vars)
+
+        # Additional actor metrics
+        actor_norms = [tf.norm(weight) for weight in self.actor.trainable_weights]
+        for var, norm in zip(self.critic.trainable_weights,
+                             actor_norms):
+            var_name = "actor/{}/norm".format(var.name)
+            self.variables[var_name] = norm
+        self.variables["actor/norm"] = tf.reduce_sum(
+            critic_norms)
+
+        # Additional target actor metrics
+        target_actor_norms = [tf.norm(weight) for weight in self.target_actor.trainable_weights]
+        for var, norm in zip(self.target_critic.trainable_weights,
+                             target_actor_norms):
+            var_name = "target_actor/{}/norm".format(var.name)
+            self.variables[var_name] = norm
+        self.variables["target_actor/norm"] = tf.reduce_sum(
+            critic_norms)
 
         # Collect summaries directly from variables
         for (var_name, variable) in self.variables.items():
@@ -231,15 +267,16 @@ class DDPGAgent(Agent):
         # Critic
         self.critic_summaries = [
             value for (key, value) in self.summary_variables.items()
-            if key.startswith("critic/")
+            if (key.startswith("critic/") or key.startswith("target_critic/"))
         ]
         # Actor
         # No need to collect the actor's loss, since we already have actor/objective
         self.actor_summaries = [
             value for (key, value) in self.summary_variables.items()
-            if (key.startswith("actor/") and not key == ("actor/loss"))
+            if (key.startswith("actor/") and not key == ("actor/loss") or key.startswith("target_actor/"))
         ]
 
+        # Initialize the remaining variables
         # FIXME: Use directly Keras backend
         # This is a kind of a hack
         # Taken from the "initialize_variables" of the Keras Tensorflow backend
@@ -423,12 +460,12 @@ class DDPGAgent(Agent):
                 if hard_update_target_actor:
                     self.hard_update_target_actor()
             else:
-                self.session.run(self.target_actor_train_fn)
+                self.session.run(self.target_actor_train_op)
             if self.target_critic_update >= 1:
                 if hard_update_target_critic:
                     self.hard_update_target_critic()
             else:
-                self.session.run(self.target_critic_train_fn)
+                self.session.run(self.target_critic_train_op)
 
             self.step_summaries += summaries
 
@@ -479,7 +516,7 @@ class DDPGAgent(Agent):
         # Train the critic
         for _ in range(sgd_iterations):
             # FIXME: The intermediate gradient values are not captured
-            self.session.run(self.critic_train_fn, feed_dict=feed_dict)
+            self.session.run(self.critic_train_op, feed_dict=feed_dict)
 
         return (summaries)
 
@@ -496,7 +533,7 @@ class DDPGAgent(Agent):
         # Train the actor
         for _ in range(sgd_iterations):
             # FIXME: The intermediate gradient values are not captured
-            self.session.run(self.actor_train_fn, feed_dict=feed_dict)
+            self.session.run(self.actor_train_op, feed_dict=feed_dict)
 
         if can_reset_actor:
             # Reset the actor if the gradient is flat
@@ -515,7 +552,7 @@ class DDPGAgent(Agent):
         """Restore from checkpoint"""
         weights_actor, weights_critic = self.checkpoints[checkpoint_id]
         if actor:
-            print("\033[31mRestoring actor\033[0m")
+            print("\033[31mRestoring actor and target actor\033[0m")
             self.actor.set_weights(weights_actor)
             self.target_actor.set_weights(weights_actor)
         if critic:

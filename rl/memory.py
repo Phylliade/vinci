@@ -40,6 +40,7 @@ class SimpleMemory(Memory):
     """A simple memory directly storing experiences in a circular buffer"""
 
     def __init__(self, env, limit):
+        super(SimpleMemory, self).__init__(env)
         self.buffer = RingBuffer(limit)
 
     def get_idxs(self, idxs, batch_size):
