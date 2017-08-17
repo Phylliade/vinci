@@ -151,10 +151,10 @@ class Agent(object):
         # Initialize the Hooks
         hooks_list = []
         if tensorboard:
-            from rl.hooks import TensorboardHook
+            from rl.hooks.tensorboard import TensorboardHook
             hooks_list.append(TensorboardHook())
         if plots:
-            from rl.hooks import PortraitHook, TrajectoryHook
+            from rl.hooks.plot import PortraitHook, TrajectoryHook
             hooks_list.append(PortraitHook())
             hooks_list.append(TrajectoryHook())
         hooks = Hooks(self, hooks_list)

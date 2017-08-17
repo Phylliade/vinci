@@ -30,3 +30,11 @@ agent = DDPGAgent(
     random_process=random_process
     )
 agent.compile()
+
+agent.fit(
+    env=env,
+    nb_steps=30000,
+    visualize=False,
+    verbose=2,
+    nb_max_episode_steps=200,
+    plots=False)
