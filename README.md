@@ -1,6 +1,7 @@
 # Vinci
 
 [![Build Status](https://travis-ci.org/Phylliade/vinci.svg?branch=master)](https://travis-ci.org/Phylliade/vinci)
+[![Documentation Status](http://readthedocs.org/projects/vinci/badge/?version=latest)](http://vinci.readthedocs.io/en/latest/?badge=latest)
 
 This is a generic, easy to use, and keras-compatible deep RL framework.
 
