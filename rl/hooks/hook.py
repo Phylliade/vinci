@@ -1,4 +1,4 @@
-class Hook:
+class Hook(object):
     """
     The abstract Hook class.
     A hook is designed to be a callable running on an agent object. It shouldn't return anything and instead exports the data itself (e.g. pickle, image).
