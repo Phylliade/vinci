@@ -5,14 +5,10 @@ import numpy as np
 import tensorflow as tf
 # Remove use of Keras backend
 import keras.backend as K
-from collections import namedtuple
 
 from rl.agent import Agent
 from rl.utils import clone_model, get_soft_target_model_ops
 from rl.utils.numerics import gradient_inverter, huber_loss
-
-Batch = namedtuple("Batch", ("state_0", "action", "reward", "state_1",
-                             "terminal_1"))
 
 # Whether to use Keras inference engine
 USE_KERAS_INFERENCE = False
@@ -407,7 +403,7 @@ class DDPGAgent(Agent):
         if not (fit_actor or fit_critic):
             return
         else:
-            batch = self.get_batch()
+            batch = self.memory.sample(self.batch_size)
 
             summaries = []
 
@@ -440,11 +436,11 @@ class DDPGAgent(Agent):
         # Get the target action
         # \pi(s_t)
         if USE_KERAS_INFERENCE:
-            target_actions = self.target_actor.predict_on_batch(batch.state_1)
+            target_actions = self.target_actor.predict_on_batch(batch.state1)
         else:
             target_actions = self.session.run(
                 self.target_actor(self.variables["state"]),
-                feed_dict={self.variables["state"]: batch.state_1,
+                feed_dict={self.variables["state"]: batch.state1,
                            K.learning_phase(): 0})
         assert target_actions.shape == (self.batch_size, self.nb_actions)
 
@@ -452,28 +448,25 @@ class DDPGAgent(Agent):
         # Q(s_t, \pi(s_t))
         if USE_KERAS_INFERENCE:
             target_q_values = self.target_critic.predict_on_batch(
-                [batch.state_1, target_actions]).flatten()
+                [batch.state1, target_actions])
         else:
             target_q_values = self.session.run(
                 self.target_critic([self.variables["state"], self.variables["action"]]),
                 feed_dict={
-                    self.variables["state"]: batch.state_1,
+                    self.variables["state"]: batch.state1,
                     self.variables["action"]: target_actions
-                }).flatten()
+                })
 
         # Also works
-        assert target_q_values.shape == (self.batch_size, )
+        # assert target_q_values.shape == (self.batch_size, )
 
         # Compute the critic targets:
         # r_t + gamma * Q(s_t, \pi(s_t))
-        # but only for the affected output units (as given by action_batch).
         discounted_reward_batch = self.gamma * target_q_values
-        discounted_reward_batch *= batch.terminal_1
-        critic_targets = (batch.reward + discounted_reward_batch).reshape(
-            self.batch_size, 1)
+        critic_targets = (batch.reward + discounted_reward_batch)
 
         feed_dict = {
-            self.variables["state"]: batch.state_0,
+            self.variables["state"]: batch.state0,
             self.variables["action"]: batch.action,
             self.critic_target: critic_targets
         }
@@ -492,7 +485,7 @@ class DDPGAgent(Agent):
     def fit_actor(self, batch, sgd_iterations=1, can_reset_actor=False):
         """Fit the actor network"""
 
-        feed_dict = {self.variables["state"]: batch.state_0, K.learning_phase(): 1}
+        feed_dict = {self.variables["state"]: batch.state0, K.learning_phase(): 1}
 
         # Collect metrics before training the actor
         self.metrics["actor/gradient_norm"], summaries = self.session.run(
@@ -515,7 +508,7 @@ class DDPGAgent(Agent):
     def get_batch(self):
         """
         Get and process a batch
-        Split each batch of experiences into batches of state_0, action etc...
+        Split each batch of experiences into batches of state0, action etc...
         """
         # TODO: Remove this function
         # Store directly the different batches into memory

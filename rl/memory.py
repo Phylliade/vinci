@@ -11,6 +11,11 @@ import pickle
 Experience = namedtuple('Experience',
                         'state0, action, reward, state1, terminal1')
 
+# A batch
+# It stores data element-wise, instead of experience-wise
+Batch = namedtuple("Batch", ("state0", "action", "reward", "state1",
+                             "terminal1"))
+
 
 def sample_batch_indexes(low, high, size):
     if high - low >= size:
@@ -82,12 +87,35 @@ def zeroed_observation(observation):
 class SimpleMemory(object):
     """A simple memory directly storing experiences"""
 
-    def __init__(self, limit, window_length):
+    def __init__(self, env, limit):
         self.buffer = RingBuffer(limit)
+        self.env = env
 
-    def get_idxs(self, idxs):
-        """Get a non-contiguous series of idxs"""
-        return ([self.buffer[idx] for idx in idxs])
+    def get_idxs(self, idxs, batch_size):
+        """Get a non-contiguous series of indexes"""
+        # Allocate memory
+        state0_batch = np.empty((batch_size, self.env.observation_space.dim))
+        action_batch = np.empty((batch_size, self.env.action_space.dim))
+        reward_batch = np.empty((batch_size, 1))
+        terminal1_batch = np.empty((batch_size, 1), dtype=bool)
+        state1_batch = np.empty((batch_size, self.env.observation_space.dim))
+
+        for batch_index, memory_index in enumerate(idxs):
+            experience = self.buffer[memory_index]
+            state0_batch[batch_index, :] = experience.state0
+            action_batch[batch_index, :] = experience.action
+            reward_batch[batch_index, :] = experience.reward
+            terminal1_batch[batch_index, :] = experience.terminal1
+            state1_batch[batch_index, :] = experience.state1
+
+        batch = Batch(
+            state0=state0_batch,
+            action=action_batch,
+            reward=reward_batch,
+            terminal1=terminal1_batch,
+            state1=state1_batch)
+
+        return batch
 
     def sample(self, batch_size, batch_idxs=None):
         available_samples = len(self)
@@ -99,7 +127,7 @@ class SimpleMemory(object):
             batch_idxs = sample_batch_indexes(0, available_samples - 1, size=batch_size)
         batch_idxs = np.array(batch_idxs) + 1
 
-        return (self.get_idxs(batch_idxs))
+        return (self.get_idxs(batch_idxs, batch_size=batch_size))
 
     def append(self, observation_0, action, reward, observation_1, terminal, training=True):
         self.buffer.append(

@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name='vinci',
-    version='1.0.0',
+    version='1.1.0',
     description='Deep Reinforcement Learning framework',
     author='Pierre Manceron',
     url='https://github.com/phylliade/vinci',
