@@ -63,8 +63,8 @@ class Agent(object):
              log_interval=10000,
              nb_max_episode_steps=None,
              reward_scaling=1.,
-             plots=True,
-             tensorboard=True):
+             plots=False,
+             tensorboard=False):
         """
         Run steps until termination.
         This method shouldn't be called directly, but instead called in :func:`fit` and :func:`test`
@@ -346,8 +346,8 @@ class Agent(object):
     def fit_offline(self,
                     epochs=1,
                     episode_length=20,
-                    plots=True,
-                    tensorboard=True,
+                    plots=False,
+                    tensorboard=False,
                     **kwargs):
         """Train the networks in offline mode"""
 
