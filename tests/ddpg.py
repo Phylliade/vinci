@@ -15,7 +15,7 @@ actor = simple_actor(env)
 critic = simple_critic(env)
 
 # Memory
-memory = SimpleMemory(limit=1000000)
+memory = SimpleMemory(env=env, limit=1000000)
 
 # Noise
 random_process = OrnsteinUhlenbeckProcess(
