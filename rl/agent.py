@@ -45,7 +45,7 @@ class Agent(object):
         self.checkpoints = []
 
     def compile(self):
-        """Compiles an agent: Create the internal variables and populate the variables objects."""
+        """Compile an agent: Create the internal variables and populate the variables objects."""
         raise NotImplementedError()
 
     def _run(self,
@@ -98,7 +98,7 @@ class Agent(object):
         # Process the different cases when either nb_steps or nb_episodes are specified
         if (nb_steps is None and nb_episodes is None):
             raise (ValueError(
-                "Please specify one (and only one) of nb_steps and nb_episodes"
+                "Please specify one (and only one) of nb_steps or nb_episodes"
             ))
         elif (nb_steps is not None and nb_episodes is None):
             termination_criterion = STEPS_TERMINATION
@@ -106,7 +106,7 @@ class Agent(object):
             termination_criterion = EPISODES_TERMINATION
         elif (nb_steps is not None and nb_episodes is not None):
             raise (ValueError(
-                "Please specify one (and only one) of nb_steps and nb_episodes"
+                "Please specify one (and only one) of nb_steps or nb_episodes"
             ))
 
         self.training = training
