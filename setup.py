@@ -8,9 +8,8 @@ setup(name='vinci',
       author='Pierre Manceron',
       url='https://github.com/phylliade/vinci',
       license='MIT',
-      install_requires=['keras>=1.0.7'],
+      install_requires=['numpy', 'keras>=2.0.0', 'gym>=0.9.2'],
       extras_require={
-          'gym': ['gym'],
           'plot': ['matplotlib', 'seaborn']
       },
       packages=find_packages())

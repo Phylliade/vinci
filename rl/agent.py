@@ -8,7 +8,8 @@ from keras.callbacks import History
 import keras.backend as K
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
-from rl.hooks import PortraitHook, TensorboardHook, TrajectoryHook, Hooks
+from rl.hooks import Hooks
+# Other hooks are imported on the fly when required
 
 
 # Global variables
@@ -150,8 +151,10 @@ class Agent(object):
         # Initialize the Hooks
         hooks_list = []
         if tensorboard:
+            from rl.hooks import TensorboardHook
             hooks_list.append(TensorboardHook())
         if plots:
+            from rl.hooks import PortraitHook, TrajectoryHook
             hooks_list.append(PortraitHook())
             hooks_list.append(TrajectoryHook())
         hooks = Hooks(self, hooks_list)
@@ -354,8 +357,10 @@ class Agent(object):
         # Initialize the Hooks
         hooks_list = []
         if tensorboard:
+            from rl.hooks import TensorboardHook
             hooks_list.append(TensorboardHook())
         if plots:
+            from rl.hooks import PortraitHook, TrajectoryHook
             hooks_list.append(PortraitHook())
             hooks_list.append(TrajectoryHook())
         hooks = Hooks(self, hooks_list)
