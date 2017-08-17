@@ -33,7 +33,7 @@ agent.compile()
 
 agent.fit(
     env=env,
-    nb_steps=30000,
+    nb_episodes=1,
     visualize=False,
     verbose=2,
     nb_max_episode_steps=200,
