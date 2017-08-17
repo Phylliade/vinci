@@ -1,4 +1,7 @@
 # Vinci
+
+[![Build Status](https://travis-ci.org/Phylliade/vinci.svg?branch=master)](https://travis-ci.org/Phylliade/vinci)
+
 This is a generic, easy to use, and keras-compatible deep RL framework.
 
 It began as a fork of [keras-rl](https://github.com/matthiasplappert/keras-rl) but is now a separated project.

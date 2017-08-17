@@ -19,3 +19,4 @@ install:
   - pip install tensorflow
   - pip install .
 script: cd tests && python imports.py
+cache: pip
