@@ -61,7 +61,7 @@ class DDPGAgent(Agent):
                  custom_model_objects=None,
                  target_critic_update=1e-3,
                  # FIXME: Use 1e-4 as stated in reproducinility paper
-                 target_actor_update=1,
+                 target_actor_update=1e-3,
                  invert_gradients=False,
                  gradient_inverter_min=-1.,
                  gradient_inverter_max=1.,
