@@ -9,6 +9,7 @@ import keras.backend as K
 from rl.agent import Agent
 from rl.utils import clone_model, get_soft_target_model_ops
 from rl.utils.numerics import gradient_inverter, huber_loss
+from rl.memory import Experience
 
 # Whether to use Keras inference engine
 USE_KERAS_INFERENCE = False
@@ -348,8 +349,8 @@ class DDPGAgent(Agent):
         # Nothing to store in offline mode
         if not offline:
             if self.step % self.memory_interval == 0:
-                self.memory.append(self.observation, self.action, self.reward,
-                                   self.observation_1, self.done)
+                self.memory.append(Experience(self.observation, self.action, self.reward,
+                                   self.observation_1, self.done))
 
         # Train the networks
         if self.step % self.train_interval == 0:
@@ -504,44 +505,6 @@ class DDPGAgent(Agent):
                 self.restore_checkpoint(actor=True, critic=False)
 
         return (summaries)
-
-    def get_batch(self):
-        """
-        Get and process a batch
-        Split each batch of experiences into batches of state0, action etc...
-        """
-        # TODO: Remove this function
-        # Store directly the different batches into memory
-        experiences = self.memory.sample(self.batch_size)
-        assert len(experiences) == self.batch_size
-
-        # Start by extracting the necessary parameters (we use a vectorized implementation).
-        state0_batch = []
-        reward_batch = []
-        action_batch = []
-        terminal1_batch = []
-        state1_batch = []
-        for e in experiences:
-            state0_batch.append(e.state0)
-            state1_batch.append(e.state1)
-            reward_batch.append(e.reward)
-            action_batch.append(e.action)
-            terminal1_batch.append(0. if e.terminal1 else 1.)
-
-        # Prepare and validate parameters.
-        state0_batch = np.array(state0_batch)
-        state1_batch = np.array(state1_batch)
-        terminal1_batch = np.array(terminal1_batch)
-        reward_batch = np.array(reward_batch)
-        action_batch = np.array(action_batch)
-
-        batch = Batch(
-            state_0=state0_batch,
-            action=action_batch,
-            reward=reward_batch,
-            terminal_1=terminal1_batch,
-            state_1=state1_batch)
-        return (batch)
 
     def checkpoint(self):
         """Save the weights"""

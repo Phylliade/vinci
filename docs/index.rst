@@ -16,6 +16,7 @@ Contents:
    agent
    ddpg
    hooks
+   memory
 
 
 
@@ -25,4 +26,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
