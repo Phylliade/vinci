@@ -7,5 +7,5 @@ python:
 install:
   - pip install tensorflow
   - pip install .
-script: cd tests && python imports.py
+script: cd tests && python imports.py && python ddpg.py
 cache: pip
