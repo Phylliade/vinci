@@ -47,7 +47,7 @@ class ValidationHook(Hook):
     """Perform validation of the hooks variables at runtime"""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(ValidationHook, self).__init__(*args, **kwargs)
         self.validated = False
 
     def __call__(self):

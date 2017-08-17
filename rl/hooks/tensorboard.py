@@ -4,7 +4,7 @@ from .hook import Hook
 
 class TensorboardHook(Hook):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(TensorboardHook, self).__init__(*args, **kwargs)
         self.summary_writer = tf.summary.FileWriter('./logs')
 
     def __call__(self):

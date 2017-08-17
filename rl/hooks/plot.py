@@ -43,7 +43,7 @@ class TrajectoryHook(Hook):
     """Records the trajectory of the agent"""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(TrajectoryHook, self).__init__(*args, **kwargs)
         self.trajectory = {"x": [], "y": []}
 
     def __call__(self):
