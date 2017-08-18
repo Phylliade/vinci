@@ -8,3 +8,11 @@ def network_values(env, actor, critic, definition=10000):
     distribution_critic = critic.predict_on_batch([states, actions])
 
     return((distribution_actor, distribution_critic))
+
+
+def discrete_probability(samples):
+    hist, edges = np.histogram(samples, density=True)
+    bin_sizes = []
+    for i in range(len(hist)):
+        bin_sizes.append(edges[i+1] - edges[i])
+    return(bin_sizes * hist)
