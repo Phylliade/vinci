@@ -20,7 +20,7 @@ EPISODES_TERMINATION = 2
 class Agent(object):
     """Generic agent class"""
 
-    def __init__(self):
+    def __init__(self, experiment_id=0):
         # Use the same session as Keras
         self.session = K.get_session()
         # self.session = tf.Session()
@@ -31,6 +31,8 @@ class Agent(object):
         self.variables = {}
         # And their corresponding summaries
         self.summary_variables = {}
+
+        self.experiment_id = str(experiment_id)
 
         # Setup hook variables
         self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
@@ -152,7 +154,7 @@ class Agent(object):
         hooks_list = []
         if tensorboard:
             from rl.hooks.tensorboard import TensorboardHook
-            hooks_list.append(TensorboardHook())
+            hooks_list.append(TensorboardHook(self))
         if plots:
             from rl.hooks.plot import PortraitHook, TrajectoryHook
             hooks_list.append(PortraitHook())

@@ -23,13 +23,9 @@ class Hook(object):
     :param agent: the RL agent
     :param episodic: Whether the hook will use episode information
     """
-
-    def __init__(self, agent=None, episodic=True):
-        """
-
-        """
-        self.agent = agent
-        self.episodic = episodic
+    def __init__(self, agent=None):
+        if agent is not None:
+            self._register(agent)
 
     def __call__(self):
         raise (NotImplementedError)
@@ -37,6 +33,7 @@ class Hook(object):
     def _register(self, agent):
         """Register the agent"""
         self.agent = agent
+        self.export_dir = "experiments/" + self.agent.experiment_id + "/"
 
     @property
     def count(self):

@@ -21,22 +21,22 @@ class PortraitHook(Hook):
                     self.agent.actor,
                     self.agent.env,
                     save_figure=True,
-                    figure_file=("figures/actor/" + file_name))
+                    figure_file=(self.export_dir + "figures/actor/" + file_name))
                 portrait_critic(
                     self.agent.critic,
                     self.agent.env,
                     save_figure=True,
-                    figure_file=("figures/critic/" + file_name))
+                    figure_file=(self.export_dir + "figures/critic/" + file_name))
 
             # Plot the distribution of the actor and the critic
             plot_distribution(
                 self.agent.actor,
                 self.agent.critic,
                 self.agent.env,
-                actor_file="figures/actor/distribution/{}.png".format(
-                    self.count),
-                critic_file="figures/critic/distribution/{}.png".format(
-                    self.count))
+                actor_file=(self.export_dir + "figures/actor/distribution/{}.png".format(
+                    self.count)),
+                critic_file=(self.export_dir + "figures/critic/distribution/{}.png".format(
+                    self.count)))
 
 
 class TrajectoryHook(Hook):
@@ -57,7 +57,7 @@ class TrajectoryHook(Hook):
                     self.trajectory,
                     self.agent.actor,
                     self.agent.env,
-                    figure_file=("figures/trajectory/{}.png".format(self.count)))
+                    figure_file=(self.export_dir + "figures/trajectory/{}.png".format(self.count)))
                 # Flush the trajectories
                 self.trajectory["x"] = []
                 self.trajectory["y"] = []
@@ -75,4 +75,4 @@ class MemoryDistributionHook(Hook):
                 actions.append(experience.action)
                 states.append(experience.state0)
 
-            plot_action_distribution(actions, file="figures/memory/action/{}.png".format(self.count))
+            plot_action_distribution(actions, file=(self.export_dir + "figures/memory/action/{}.png".format(self.count)))

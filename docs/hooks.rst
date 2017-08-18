@@ -1,5 +1,5 @@
 :mod:`hooks`
 ===============
 
-.. automodule:: rl.hooks
+.. automodule:: rl.hooks.hook
    :members:
