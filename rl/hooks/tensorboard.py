@@ -3,9 +3,10 @@ from .hook import Hook
 
 
 class TensorboardHook(Hook):
-    def __init__(self, *args, **kwargs):
-        super(TensorboardHook, self).__init__(*args, **kwargs)
-        self.summary_writer = tf.summary.FileWriter(self.export_dir + '/logs')
+    def _register(self, *args, **kwargs):
+        super(TensorboardHook, self)._register(*args, **kwargs)
+        self.endpoint = self.experiment.endpoint("tensorboard")
+        self.summary_writer = tf.summary.FileWriter(self.endpoint)
 
     def __call__(self):
         # Step summaries

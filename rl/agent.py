@@ -9,6 +9,7 @@ import keras.backend as K
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 from rl.hooks import Hooks
+from rl.experiment import Experiment
 # Other hooks are imported on the fly when required
 
 
@@ -20,7 +21,7 @@ EPISODES_TERMINATION = 2
 class Agent(object):
     """Generic agent class"""
 
-    def __init__(self, experiment_id=0):
+    def __init__(self, experiment_id="default"):
         # Use the same session as Keras
         self.session = K.get_session()
         # self.session = tf.Session()
@@ -32,7 +33,7 @@ class Agent(object):
         # And their corresponding summaries
         self.summary_variables = {}
 
-        self.experiment_id = str(experiment_id)
+        self.experiment = Experiment(experiment_id, force=True)
 
         # Setup hook variables
         self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
@@ -154,7 +155,7 @@ class Agent(object):
         hooks_list = []
         if tensorboard:
             from rl.hooks.tensorboard import TensorboardHook
-            hooks_list.append(TensorboardHook(self))
+            hooks_list.append(TensorboardHook())
         if plots:
             from rl.hooks.plot import PortraitHook, TrajectoryHook
             hooks_list.append(PortraitHook())

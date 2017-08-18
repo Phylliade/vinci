@@ -3,16 +3,31 @@ from rl.utils.plot import portrait_critic, portrait_actor, plot_trajectory, plot
 
 
 class PortraitHook(Hook):
-    # TODO: Move this hook to a non-blocking thread
+    def _register(self, *args, **kwargs):
+        super(PortraitHook, self)._register(*args, **kwargs)
+        # Endpoints
+        # Portrait
+        self.endpoint_actor = self.experiment.endpoint("figures/portrait/actor")
+        self.endpoint_actor_test = self.experiment.endpoint("figures/portrait/actor/test")
+        self.endpoint_critic = self.experiment.endpoint("figures/portrait/critic")
+        self.endpoint_critic_test = self.experiment.endpoint("figures/portrait/critic/test")
+        # Distribution
+        self.endpoint_actor_distribution = self.experiment.endpoint("figures/distribution/actor")
+        self.endpoint_critic_distribution = self.experiment.endpoint("figures/distribution/critic")
+
     def __call__(self):
+        # TODO: Move this hook to a non-blocking thread
         if self.agent.done:
 
             # Get the file name
             if self.agent.training:
-                file_name = "{}.png"
+                actor_endpoint = self.endpoint_actor_test
+                critic_endpoint = self.endpoint_critic_test
             else:
-                file_name = "test/{}.png"
-            file_name = file_name.format(self.count)
+                actor_endpoint = self.endpoint_actor
+                critic_endpoint = self.endpoint_critic
+
+            file_name = "{}.png".format(self.count)
 
             # Only plot portraits for envs whose observation_space is 2-dimensional
             if self.agent.env.observation_space.dim == 2:
@@ -21,30 +36,28 @@ class PortraitHook(Hook):
                     self.agent.actor,
                     self.agent.env,
                     save_figure=True,
-                    figure_file=(self.export_dir + "figures/actor/" + file_name))
+                    figure_file=(actor_endpoint + file_name))
                 portrait_critic(
                     self.agent.critic,
                     self.agent.env,
                     save_figure=True,
-                    figure_file=(self.export_dir + "figures/critic/" + file_name))
+                    figure_file=(critic_endpoint + file_name))
 
             # Plot the distribution of the actor and the critic
             plot_distribution(
                 self.agent.actor,
                 self.agent.critic,
                 self.agent.env,
-                actor_file=(self.export_dir + "figures/actor/distribution/{}.png".format(
-                    self.count)),
-                critic_file=(self.export_dir + "figures/critic/distribution/{}.png".format(
-                    self.count)))
+                actor_file=(self.endpoint_actor_distribution + file_name),
+                critic_file=(self.endpoint_actor_distribution + file_name))
 
 
 class TrajectoryHook(Hook):
     """Records the trajectory of the agent"""
-
-    def __init__(self, *args, **kwargs):
-        super(TrajectoryHook, self).__init__(*args, **kwargs)
+    def _register(self, *args, **kwargs):
+        super(TrajectoryHook, self)._register(*args, **kwargs)
         self.trajectory = {"x": [], "y": []}
+        self.endpoint = self.experiment.endpoint("figures/trajectory")
 
     def __call__(self):
         # Only plot portraits for envs whose observation_space is 2-dimensional
@@ -57,13 +70,17 @@ class TrajectoryHook(Hook):
                     self.trajectory,
                     self.agent.actor,
                     self.agent.env,
-                    figure_file=(self.export_dir + "figures/trajectory/{}.png".format(self.count)))
+                    figure_file=(self.endpoint + "{}.png".format(self.count)))
                 # Flush the trajectories
                 self.trajectory["x"] = []
                 self.trajectory["y"] = []
 
 
 class MemoryDistributionHook(Hook):
+    def _register(self, *args, **kwargs):
+        super(MemoryDistributionHook, self)._register(*args, **kwargs)
+        self.endpoint = self.experiment.endpoint("figures/memory/action")
+
     def __call__(self):
         if self.agent.done:
             replay_buffer = self.agent.memory.dump()
@@ -75,4 +92,4 @@ class MemoryDistributionHook(Hook):
                 actions.append(experience.action)
                 states.append(experience.state0)
 
-            plot_action_distribution(actions, file=(self.export_dir + "figures/memory/action/{}.png".format(self.count)))
+            plot_action_distribution(actions, file=(self.endpoint + "{}.png".format(self.count)))

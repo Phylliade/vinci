@@ -33,7 +33,7 @@ class Hook(object):
     def _register(self, agent):
         """Register the agent"""
         self.agent = agent
-        self.export_dir = "experiments/" + self.agent.experiment_id + "/"
+        self.experiment = agent.experiment
 
     @property
     def count(self):
@@ -42,9 +42,8 @@ class Hook(object):
 
 class ValidationHook(Hook):
     """Perform validation of the hooks variables at runtime"""
-
-    def __init__(self, *args, **kwargs):
-        super(ValidationHook, self).__init__(*args, **kwargs)
+    def _register(self, *args, **kwargs):
+        super(ValidationHook, self)._register(*args, **kwargs)
         self.validated = False
 
     def __call__(self):
