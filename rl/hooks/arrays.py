@@ -12,12 +12,9 @@ class ArrayHook(Hook):
         self.endpoint = self.experiment.endpoint("data")
         self.run_rewards = []
         self.rewards = []
-        print("Creating arrayhook")
 
     def __call__(self):
         if self.agent.done:
-            print("appending")
-            print(self.agent.episode_reward)
             self.run_rewards.append(self.agent.episode_reward)
 
     def _run_call(self):

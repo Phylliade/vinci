@@ -1,6 +1,6 @@
 import os
 import shutil
-from rl.hooks import ExperimentHooks
+from rl.hooks import ExperimentHooks, ExperimentsHooks
 
 
 class Experiment(object):
@@ -31,11 +31,16 @@ class Experiment(object):
 
 
 class Experiments():
-    def __init__(self, name):
+    def __init__(self, name, analytics=False, hooks=None):
         self.name = str(name)
         self.done = False
-        from rl.hooks.arrays import ArrayHook
-        self.hooks = [ArrayHook()]
+        if hooks is None:
+            hooks = []
+        if analytics:
+            from rl.hooks.arrays import ArrayHook
+            hooks.append(ArrayHook())
+
+        self.hooks = ExperimentsHooks(hooks)
 
     def __call__(self, number):
             for epoch in range(1, number + 1):

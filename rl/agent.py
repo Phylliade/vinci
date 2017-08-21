@@ -177,8 +177,6 @@ class Agent(object):
             self.hooks.append(PortraitHook())
             self.hooks.append(TrajectoryHook())
 
-        print(self.hooks)
-
         # Define the termination criterion
         # Step and episode at which we satrt the function
         start_step = self.step

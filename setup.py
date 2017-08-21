@@ -9,7 +9,7 @@ setup(
     url='https://github.com/phylliade/vinci',
     license='MIT',
     install_requires=['numpy', 'keras>=2.0.0', 'gym>=0.9.2'],
-    extras_require={'plot': ['matplotlib', 'seaborn']},
+    extras_require={'plot': ['matplotlib', 'seaborn'], 'analytics': ["pandas"]},
     classifiers=[
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
