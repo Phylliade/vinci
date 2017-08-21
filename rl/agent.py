@@ -21,7 +21,7 @@ EPISODES_TERMINATION = 2
 class Agent(object):
     """Generic agent class"""
 
-    def __init__(self, experiment_id="default"):
+    def __init__(self, experiment=None, tensorboard=False, plots=False, hooks=None):
         # Use the same session as Keras
         self.session = K.get_session()
         # self.session = tf.Session()
@@ -33,7 +33,33 @@ class Agent(object):
         # And their corresponding summaries
         self.summary_variables = {}
 
-        self.experiment = Experiment(experiment_id, force=True)
+        if experiment is None:
+            # Since we are using "default", we can overwrite it.
+            self.experiment = Experiment("default", force=True)
+        else:
+            self.experiment = experiment
+
+        # Hooks
+        # Initialize the Hooks
+        if self.experiment.hooks is not None:
+            hooks_list = self.experiment.hooks
+        elif hooks is None:
+            hooks_list = []
+            if tensorboard:
+                from rl.hooks.tensorboard import TensorboardHook
+                hooks_list.append(TensorboardHook())
+            if plots:
+                from rl.hooks.plot import PortraitHook, TrajectoryHook
+                hooks_list.append(PortraitHook())
+                hooks_list.append(TrajectoryHook())
+            if False:
+                from rl.hooks.arrays import ArrayHook
+                hooks_list.append(ArrayHook())
+        else:
+            hooks_list = hooks
+        print(hooks_list)
+        self.hooks = Hooks(self, hooks_list)
+        self.experiment.hooks = self.hooks
 
         # Setup hook variables
         self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
@@ -151,16 +177,8 @@ class Agent(object):
         else:
             callbacks._set_params(params)
 
-        # Initialize the Hooks
-        hooks_list = []
-        if tensorboard:
-            from rl.hooks.tensorboard import TensorboardHook
-            hooks_list.append(TensorboardHook())
-        if plots:
-            from rl.hooks.plot import PortraitHook, TrajectoryHook
-            hooks_list.append(PortraitHook())
-            hooks_list.append(TrajectoryHook())
-        hooks = Hooks(self, hooks_list)
+        # Configure hooks
+        # TODO: use plots and tensorboard args
 
         # Define the termination criterion
         # Step and episode at which we satrt the function
@@ -181,6 +199,7 @@ class Agent(object):
         callbacks.on_train_begin()
 
         # Setup
+        self.run_done = False
         self.done = True
         did_abort = False
         # Define these for clarification, not mandatory:
@@ -193,7 +212,7 @@ class Agent(object):
 
         try:
             # Run steps (and episodes) until the termination criterion is met
-            while not (termination()):
+            while not (self.run_done):
                 # Init episode
                 # If we are at the beginning of a new episode, execute a startup sequence
                 if self.done:
@@ -270,12 +289,17 @@ class Agent(object):
                     # Force a terminal state.
                     self.done = True
 
+                # Stop run if termination criterion met
+                if termination():
+                    self.run_done = True
+                    self.hooks.run_end()
+
                 # Post step: training, callbacks and hooks
                 # Train the algorithm
                 self.backward()
 
                 # Hooks
-                hooks()
+                self.hooks()
 
                 # Callbacks
                 # Collect statistics
@@ -308,6 +332,7 @@ class Agent(object):
 
         callbacks.on_train_end(logs={'did_abort': did_abort})
         self._on_train_end()
+        self.run_done = True
 
         return(history)
 

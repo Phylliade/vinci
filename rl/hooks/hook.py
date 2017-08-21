@@ -26,14 +26,23 @@ class Hook(object):
     def __init__(self, agent=None):
         if agent is not None:
             self._register(agent)
+        self.registered = False
 
     def __call__(self):
         raise (NotImplementedError)
+
+    # Optional calls
+    def _run_call(self):
+        pass
+
+    def _experiment_call(self):
+        pass
 
     def _register(self, agent):
         """Register the agent"""
         self.agent = agent
         self.experiment = agent.experiment
+        self.registered = True
 
     @property
     def count(self):
@@ -76,6 +85,14 @@ class Hooks:
         """Call each of the hooks"""
         for hook in self.hooks:
             hook()
+
+    def experiment_end(self):
+        for hook in self.hooks:
+            hook._experiment_call()
+
+    def run_end(self):
+        for hook in self.hooks:
+            hook._run_call()
 
     def append(self, hook):
         hook.register(self.agent)

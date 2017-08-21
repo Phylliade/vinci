@@ -28,7 +28,7 @@ agent = DDPGAgent(
     env=env,
     memory=memory,
     random_process=random_process
-    )
+)
 agent.compile()
 
 agent.fit(
