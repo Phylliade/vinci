@@ -21,7 +21,7 @@ EPISODES_TERMINATION = 2
 class Agent(object):
     """Generic agent class"""
 
-    def __init__(self, experiment=None, tensorboard=False, plots=False, hooks=None):
+    def __init__(self, experiment=None, hooks=None):
         # Use the same session as Keras
         self.session = K.get_session()
         # self.session = tf.Session()
@@ -42,24 +42,14 @@ class Agent(object):
         # Hooks
         # Initialize the Hooks
         if self.experiment.hooks is not None:
-            hooks_list = self.experiment.hooks
-        elif hooks is None:
-            hooks_list = []
-            if tensorboard:
-                from rl.hooks.tensorboard import TensorboardHook
-                hooks_list.append(TensorboardHook())
-            if plots:
-                from rl.hooks.plot import PortraitHook, TrajectoryHook
-                hooks_list.append(PortraitHook())
-                hooks_list.append(TrajectoryHook())
-            if False:
-                from rl.hooks.arrays import ArrayHook
-                hooks_list.append(ArrayHook())
+            hooks_list = list(self.experiment.hooks)
         else:
-            hooks_list = hooks
-        print(hooks_list)
+            if hooks is None:
+                hooks_list = []
+            else:
+                hooks_list = hooks
+
         self.hooks = Hooks(self, hooks_list)
-        self.experiment.hooks = self.hooks
 
         # Setup hook variables
         self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
@@ -179,6 +169,15 @@ class Agent(object):
 
         # Configure hooks
         # TODO: use plots and tensorboard args
+        if tensorboard:
+            from rl.hooks.tensorboard import TensorboardHook
+            self.hooks.append(TensorboardHook())
+        if plots:
+            from rl.hooks.plot import PortraitHook, TrajectoryHook
+            self.hooks.append(PortraitHook())
+            self.hooks.append(TrajectoryHook())
+
+        print(self.hooks)
 
         # Define the termination criterion
         # Step and episode at which we satrt the function

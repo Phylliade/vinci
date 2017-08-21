@@ -1,5 +1,6 @@
 import os
 import shutil
+from rl.hooks import ExperimentHooks
 
 
 class Experiment(object):
@@ -9,7 +10,7 @@ class Experiment(object):
         self.count = 1
         self.done = False
         self.experiments = experiments
-        self.hooks = hooks
+        self.hooks = ExperimentHooks(hooks)
 
         # Check of the experiment dir already exists
         if os.path.exists(self.experiment_base):
