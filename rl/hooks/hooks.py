@@ -3,7 +3,6 @@ from .hook import ValidationHook
 
 class Hooks:
     """Class to instiantiate and call multiple hooks"""
-
     def __init__(self, agent, hooks=None):
         self.agent = agent
         # Use a validationHook by default
@@ -34,16 +33,15 @@ class Hooks:
 
 
 class ExperimentHooks(Hooks):
-    def __init__(self, hooks=None):
+    def __init__(self, experiment, hooks=None):
         self.hooks = []
-        # TODO: Register the experiment
-        # self.experiment = experiment
+        self.experiment = experiment
         if hooks is not None:
             for hook in hooks:
                 self.append(hook)
 
     def append(self, hook):
-        # hook._register(self.agent)
+        hook._register_experiment(self.experiment)
         self.hooks.append(hook)
 
     def experiment_end(self):
@@ -52,18 +50,18 @@ class ExperimentHooks(Hooks):
 
 
 class ExperimentsHooks(Hooks):
-    def __init__(self, hooks=None):
+    def __init__(self, experiments, hooks=None):
         self.hooks = []
         # TODO: Register the experiments
-        # self.experiments = experiments
+        self.experiments = experiments
         if hooks is not None:
             for hook in hooks:
                 self.append(hook)
 
     def append(self, hook):
-        # hook._register(self.agent)
+        hook._register_experiments(self.experiments)
         self.hooks.append(hook)
 
-    def experiment_end(self):
+    def experiments_end(self):
         for hook in self.hooks:
             hook._experiments_call()

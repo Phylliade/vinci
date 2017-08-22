@@ -48,6 +48,16 @@ class Hook(object):
         self.experiment = agent.experiment
         self.registered = True
 
+    def _register_experiment(self, experiment):
+        """Register the agent"""
+        self.experiment = experiment
+        # self.registered = True
+
+    def _register_experiments(self, experiments):
+        """Register the agent"""
+        self.experiments = experiments
+        # self.registered = True
+
     @property
     def count(self):
         return (self.agent.episode)

@@ -10,7 +10,7 @@ class Experiment(object):
         self.count = 1
         self.done = False
         self.experiments = experiments
-        self.hooks = ExperimentHooks(hooks)
+        self.hooks = ExperimentHooks(self, hooks=hooks)
 
         # Check of the experiment dir already exists
         if os.path.exists(self.experiment_base):
@@ -31,25 +31,31 @@ class Experiment(object):
 
 
 class Experiments():
-    def __init__(self, name, analytics=False, hooks=None):
+    def __init__(self, name, analytics=True, hooks=None):
         self.name = str(name)
         self.done = False
+        # A special experiment providing endpoints for the experiments object itself
+        self._root_experiment = Experiment(self.name + "/root", experiments=self)
         if hooks is None:
             hooks = []
         if analytics:
             from rl.hooks.arrays import ArrayHook
             hooks.append(ArrayHook())
+        self.hooks = ExperimentsHooks(self, hooks=hooks)
 
-        self.hooks = ExperimentsHooks(hooks)
+    def endpoint(self, path):
+        return(self._root_experiment.endpoint(path))
 
     def __call__(self, number):
             for epoch in range(1, number + 1):
                 print("Beginning experiment {}".format(epoch))
-                experiment = Experiment(self.name + "_" + str(epoch), experiments=self, hooks=self.hooks)
+                experiment = Experiment(self.name + "/" + str(epoch), experiments=self, hooks=self.hooks)
 
                 yield experiment
 
                 experiment.done = True
+                experiment.hooks.experiment_end()
+
                 if (epoch) == number:
                     self.done = True
-                experiment.hooks.experiment_end()
+                    self.hooks.experiments_end()

@@ -3,13 +3,13 @@ import pandas as pd
 
 
 class ArrayHook(Hook):
-    def __init__(self, *args, **kwargs):
-        super(ArrayHook, self).__init__(*args, **kwargs)
+    def _register_experiments(self, *args, **kwargs):
+        super(ArrayHook, self)._register_experiments(*args, **kwargs)
         self.experiments_data = []
+        self.endpoint = self.experiments.endpoint("data")
 
     def _register(self, *args, **kwargs):
         super(ArrayHook, self)._register(*args, **kwargs)
-        self.endpoint = self.experiment.endpoint("data")
         self.run_rewards = []
         self.rewards = []
 
@@ -26,13 +26,11 @@ class ArrayHook(Hook):
         if self.experiment.done:
             self.experiments_data.append(self.rewards)
             self.rewards = []
-            self.save()
 
     def _experiments_call(self):
         self.save()
 
     def save(self):
-        print(self.experiments_data)
         rewards = pd.DataFrame(self.experiments_data)
         rewards.to_pickle(self.endpoint + "reward.p")
 

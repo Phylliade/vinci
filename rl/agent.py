@@ -42,12 +42,13 @@ class Agent(object):
         # Hooks
         # Initialize the Hooks
         if self.experiment.hooks is not None:
+            # Be sure to copy the list
             hooks_list = list(self.experiment.hooks)
         else:
-            if hooks is None:
-                hooks_list = []
-            else:
-                hooks_list = hooks
+            hooks_list = []
+
+        if hooks is not None:
+            hooks_list += hooks
 
         self.hooks = Hooks(self, hooks_list)
 
