@@ -3,7 +3,7 @@ from ..hooks import ExperimentsHooks
 
 
 class Experiments():
-    def __init__(self, name, analytics=True, hooks=None, force=False, path="./experiments"):
+    def __init__(self, name, analytics=False, hooks=None, force=False, path="./experiments"):
         self.name = str(name)
         self.done = False
         self._path = path
