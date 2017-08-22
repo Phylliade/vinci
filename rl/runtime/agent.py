@@ -9,7 +9,7 @@ import keras.backend as K
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 from rl.hooks import Hooks
-from rl.experiment import Experiment
+from .experiment import Experiment
 # Other hooks are imported on the fly when required
 
 

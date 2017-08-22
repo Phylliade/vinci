@@ -1,4 +1,4 @@
-from rl.experiment import Experiments
+from rl.runtime.experiments import Experiments
 from rl.agents.ddpg import DDPGAgent
 from rl.memory import SimpleMemory
 from rl.random import OrnsteinUhlenbeckProcess
@@ -6,7 +6,7 @@ from rl.utils.networks import simple_actor, simple_critic
 import gym
 from rl.utils.env import populate_env
 
-my_expe = Experiments("test")
+my_expe = Experiments("test", force="true", path="/tmp/experiments")
 
 for experiment in my_expe(5):
     # Get the environment

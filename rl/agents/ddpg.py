@@ -6,7 +6,7 @@ import tensorflow as tf
 # Remove use of Keras backend
 import keras.backend as K
 
-from rl.agent import Agent
+from rl.runtime.agent import Agent
 from rl.utils import clone_model, get_soft_target_model_ops
 from rl.utils.numerics import gradient_inverter, huber_loss
 from rl.memory import Experience
