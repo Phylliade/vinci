@@ -3,6 +3,7 @@ import shutil
 from rl.hooks import ExperimentHooks
 # from contextlib import contextmanager
 from .run import Run
+from ..utils.printer import print_info, print_warning
 
 
 class Experiment(object):
@@ -20,7 +21,7 @@ class Experiment(object):
             if not force:
                 raise(FileExistsError("The directory {} already exists, remove it or use the `force` argument".format(self.experiment_base)))
             else:
-                print("Overwriting {}".format(self.experiment_base))
+                print_warning("Overwriting {}".format(self.experiment_base))
                 shutil.rmtree(self.experiment_base)
         os.makedirs(self.experiment_base)
         self.endpoints = []
@@ -33,7 +34,7 @@ class Experiment(object):
         return(full_path)
 
     def __enter__(self):
-        print("\033[42mBeginning experiment {}\033[0m".format(self.id))
+        print_info("Beginning experiment {}".format(self.id))
 
     def __exit__(self, *args):
         self.done = True

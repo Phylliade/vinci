@@ -1,5 +1,6 @@
 from .experiment import Experiment
 from ..hooks import ExperimentsHooks
+from ..utils.printer import print_info
 
 
 class Experiments():
@@ -21,17 +22,17 @@ class Experiments():
         return(self._root_experiment.endpoint(path))
 
     def experiments(self, number):
-        print("\033[42mBeginning {} experiments\033[0m".format(number))
+        print_info("Beginning {} experiments".format(number))
 
         for epoch in range(1, number + 1):
-            print("\033[42mExperiment {}/{}\033[0m".format(epoch, number))
+            print_info("Experiment {}/{}")
             experiment = Experiment(self.name + "/" + str(epoch), experiments=self, hooks=self.hooks, path=self._path)
             self.experiment_count += 1
             with experiment:
                 yield experiment
 
     def __enter__(self):
-        print("\033[42mBegin experiments under prefix {}\033[0m".format(self.name))
+        print_info("Begin experiments under prefix {}".format(self.name))
 
     def __exit__(self, *args):
         self.done = True

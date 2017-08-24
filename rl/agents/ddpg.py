@@ -10,6 +10,7 @@ from rl.runtime.agent import Agent
 from rl.utils import clone_model, get_soft_target_model_ops
 from rl.utils.numerics import gradient_inverter, huber_loss
 from rl.memory import Experience
+from rl.utils.printer import print_warning
 
 # Whether to use Keras inference engine
 USE_KERAS_INFERENCE = False
@@ -554,11 +555,11 @@ class DDPGAgent(Agent):
         """Restore from checkpoint"""
         weights_actor, weights_critic = self.checkpoints[checkpoint_id]
         if actor:
-            print("\033[31mRestoring actor and target actor\033[0m")
+            print_warning("Restoring actor and target actor")
             self.actor.set_weights(weights_actor)
             self.target_actor.set_weights(weights_actor)
         if critic:
-            print("\033[31mRestoring critic\033[0m")
+            print_warning("Restoring critic")
             self.critic.set_weights(weights_critic)
             self.target_critic.set_weights(weights_critic)
 
