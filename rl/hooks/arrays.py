@@ -19,7 +19,8 @@ class ArrayHook(Hook):
         # Training
         self.experiments_istraining = []
 
-        # Experiment index
+        # Indexes
+        # TODO: Precompute these values
         # Lists of experiments
         self.experiment_index = []
 
@@ -37,6 +38,9 @@ class ArrayHook(Hook):
 
         # Training
         self.experiment_istraining = []
+
+        # Run index
+        self.run_index = []
 
     # TODO: Put run_rewards in _register_run
     def _register(self, *args, **kwargs):
@@ -56,7 +60,11 @@ class ArrayHook(Hook):
         # IsTraining
         self.experiment_istraining.append(self.agent.training)
         # Step
-        self.experiment_step.append(self.agent.step)
+        print(self.agent.training_step)
+        self.experiment_step.append(self.agent.training_step)
+
+        # Run index
+        self.run_index.append(self.agent.run_number)
 
     def _experiment_call(self):
         # Rewards
@@ -88,22 +96,22 @@ class ArrayHook(Hook):
     def save(self):
         print("Saving data")
         # each of the arrays' cells store data for one run
-        rewards = pd.DataFrame(self.experiments_rewards, index=self.experiment_index)
+        rewards = pd.DataFrame(self.experiments_rewards, index=self.experiment_index, columns=self.run_index)
         rewards.columns.name = "runs"
         rewards.index.name = "experiment"
         rewards.to_pickle(self.endpoint + "reward.p")
 
-        episode = pd.DataFrame(self.experiments_episode, index=self.experiment_index)
+        episode = pd.DataFrame(self.experiments_episode, index=self.experiment_index, columns=self.run_index)
         episode.columns.name = "runs"
         episode.index.name = "experiment"
         episode.to_pickle(self.endpoint + "episode.p")
 
-        training = pd.DataFrame(self.experiments_istraining, index=self.experiment_index)
+        training = pd.DataFrame(self.experiments_istraining, index=self.experiment_index, columns=self.run_index)
         training.columns.name = "runs"
         training.index.name = "experiment"
         training.to_pickle(self.endpoint + "training.p")
 
-        step = pd.DataFrame(self.experiments_step, index=self.experiment_index)
+        step = pd.DataFrame(self.experiments_step, index=self.experiment_index, columns=self.run_index)
         step.columns.name = "runs"
         step.index.name = "experiment"
         step.to_pickle(self.endpoint + "step.p")

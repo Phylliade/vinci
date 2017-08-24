@@ -3,7 +3,7 @@ from ..hooks import ExperimentsHooks
 from ..utils.printer import print_info
 
 
-class Experiments():
+class Experiments(object):
     def __init__(self, name, analytics=False, hooks=None, force=False, path="./experiments"):
         self.name = str(name)
         self.done = False
@@ -24,10 +24,10 @@ class Experiments():
     def experiments(self, number):
         print_info("Beginning {} experiments".format(number))
 
-        for epoch in range(1, number + 1):
-            print_info("Experiment {}/{}".format(epoch, number))
-            experiment = Experiment(self.name + "/" + str(epoch), experiments=self, hooks=self.hooks, path=self._path)
+        for _ in range(1, number + 1):
             self.experiment_count += 1
+            print_info("Experiment {}/{}".format(self.experiment_count, number))
+            experiment = Experiment(self.name + "/" + str(self.experiment_count), experiments=self, hooks=self.hooks, path=self._path)
             with experiment:
                 yield experiment
 

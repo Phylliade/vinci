@@ -41,6 +41,11 @@ class Hook(object):
     def experiments_call(self):
         pass
 
+    def _register_run(self, run):
+        """Register the agent"""
+        self.run = run
+        # self.registered = True
+
     def _register(self, agent):
         """Register the agent"""
         self.agent = agent

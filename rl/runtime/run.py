@@ -1,7 +1,12 @@
-class Run():
+class Run(object):
+    def __init__(self, agent, hooks):
+        self.hooks = hooks
+        self.agent = agent
+        self.run_number = 0
+
     def __enter__(self):
-        pass
+        self.agent.run_number += 1
 
     def __exit__(self, *args):
-        self.done = True
+        self.agent.done = True
         self.hooks.run_end()

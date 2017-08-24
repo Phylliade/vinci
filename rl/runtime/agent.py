@@ -61,7 +61,10 @@ class Agent(object):
 
         # Persistent values
         self.step = 0
+        self.training_step = 0
         self.episode = 0
+        self.training_episode = 0
+        self.run_number = 0
 
         self.checkpoints = []
 
@@ -184,7 +187,7 @@ class Agent(object):
         start_episode = self.episode
         if termination_criterion == STEPS_TERMINATION:
             def termination():
-                return (self.step - start_step > nb_steps)
+                return (self.step - start_step >= nb_steps)
         elif termination_criterion == EPISODES_TERMINATION:
             def termination():
                 return (self.episode - start_episode > nb_episodes)
@@ -197,6 +200,7 @@ class Agent(object):
         callbacks.on_train_begin()
 
         # Setup
+        self.run_number += 1
         self.run_done = False
         self.done = True
         did_abort = False
@@ -214,6 +218,8 @@ class Agent(object):
             # If we are at the beginning of a new episode, execute a startup sequence
             if self.done:
                 self.episode += 1
+                if self.training:
+                    self.training_episode += 1
                 self.episode_reward = 0.
                 self.episode_step = 0
                 callbacks.on_episode_begin(self.episode)
@@ -241,6 +247,8 @@ class Agent(object):
 
             # Increment the current step in both cases
             self.step += 1
+            if self.training:
+                self.training_step += 1
             self.episode_step += 1
             self.reward = 0.
             self.step_summaries = []
@@ -355,10 +363,13 @@ class Agent(object):
         """
         return(self._run(training=True, **kwargs))
 
-    def test(self, **kwargs):
+    def test(self, record=True, **kwargs):
         """
         Test the agent. On the contrary of :func:`fit`, no learning is involved
         Also, noise is removed.
+
+        :param bool record: Record the episodes. It False,
+
         """
         return(self._run(training=False, **kwargs))
 
@@ -372,6 +383,7 @@ class Agent(object):
 
         self.training = True
         self.done = True
+        self.run_number += 1
 
         # Initialize the Hooks
         hooks_list = []
@@ -388,12 +400,16 @@ class Agent(object):
         for epoch in range(epochs):
             if self.done:
                 self.episode += 1
+                if self.training:
+                    self.training_episode += 1
                 self.episode_reward = 0.
                 self.episode_step = 0
 
             # Initialize the step
             self.done = False
             self.step += 1
+            if self.training:
+                self.training_step += 1
             self.episode_step += 1
             self.step_summaries = []
 
@@ -408,6 +424,9 @@ class Agent(object):
 
             # Hooks
             hooks()
+
+        # End of the run
+        self.hooks.run_end()
 
     def reset_states(self):
         """Resets all internally kept states after an episode is completed."""
