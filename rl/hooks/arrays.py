@@ -35,11 +35,15 @@ class ArrayHook(Hook):
             self.experiment_index.append(self.experiments.experiment_count)
             self.training_experiment.append(self.training_run)
             self.training_run = []
+            # Save every 5 experiments
+            if (self.experiments.experiment_count % 5 == 0):
+                self.save()
 
     def _experiments_call(self):
         self.save()
 
     def save(self):
+        print("Saving data")
         rewards = pd.DataFrame(self.experiments_data, index=self.experiment_index)
         rewards.columns.name = "runs"
         rewards.index.name = "experiment"

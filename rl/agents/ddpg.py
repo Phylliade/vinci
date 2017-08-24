@@ -63,6 +63,7 @@ class DDPGAgent(Agent):
                  gradient_inverter_min=-1.,
                  gradient_inverter_max=1.,
                  actor_reset_threshold=0.3,
+                 reset_controlers=False,
                  **kwargs):
 
         if custom_model_objects is None:
@@ -109,6 +110,7 @@ class DDPGAgent(Agent):
             self.gradient_inverter_max = gradient_inverter_max
             self.gradient_inverter_min = gradient_inverter_min
         self.actor_reset_threshold = actor_reset_threshold
+        self.reset_controlers = reset_controlers
 
         # Related objects.
         self.actor = actor
@@ -410,7 +412,7 @@ class DDPGAgent(Agent):
                 hard_update_target_critic = False
 
             # Whether to reset the actor
-            if self.done and (self.episode % 5 == 0):
+            if self.done and (self.episode % 5 == 0) and self.reset_controlers:
                 can_reset_actor = True
             else:
                 can_reset_actor = False

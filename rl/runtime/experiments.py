@@ -28,7 +28,7 @@ class Experiments():
                     yield experiment
 
     def __enter__(self):
-        print("Begin experiments under prefix {}".format(self.name))
+        print("\033[42mBegin experiments under prefix {}\033[0m".format(self.name))
 
     def __exit__(self, *args):
         self.done = True

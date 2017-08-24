@@ -33,7 +33,7 @@ class Experiment(object):
         return(full_path)
 
     def __enter__(self):
-        print("Beginning experiment {}".format(self.id))
+        print("\033[42mBeginning experiment {}\033[0m".format(self.id))
 
     def __exit__(self, *args):
         self.done = True
