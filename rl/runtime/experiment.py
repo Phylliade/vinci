@@ -1,6 +1,8 @@
 import os
 import shutil
 from rl.hooks import ExperimentHooks
+# from contextlib import contextmanager
+from .run import Run
 
 
 class Experiment(object):
@@ -11,6 +13,7 @@ class Experiment(object):
         self.done = False
         self.experiments = experiments
         self.hooks = ExperimentHooks(self, hooks=hooks)
+        self.run_count = 0
 
         # Check of the experiment dir already exists
         if os.path.exists(self.experiment_base):
@@ -28,3 +31,15 @@ class Experiment(object):
         # At this point, the experiment path should already be cleared, so there is no need to check for existence of the file
         os.makedirs(full_path, exist_ok=True)
         return(full_path)
+
+    def __enter__(self):
+        print("Beginning experiment {}".format(self.id))
+
+    def __exit__(self, *args):
+        self.done = True
+        self.hooks.experiment_end()
+
+    def __next__(self):
+        run = Run()
+        self.run_count += 1
+        return(run)

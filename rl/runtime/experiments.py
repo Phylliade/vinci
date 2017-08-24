@@ -6,6 +6,7 @@ class Experiments():
     def __init__(self, name, analytics=False, hooks=None, force=False, path="./experiments"):
         self.name = str(name)
         self.done = False
+        self.experiment_count = 0
         self._path = path
         # A special experiment providing endpoints for the experiments object itself
         self._root_experiment = Experiment(self.name, experiments=self, force=force, path=self._path)
@@ -19,16 +20,16 @@ class Experiments():
     def endpoint(self, path):
         return(self._root_experiment.endpoint(path))
 
-    def __call__(self, number):
+    def experiments(self, number):
             for epoch in range(1, number + 1):
-                print("Beginning experiment {}".format(epoch))
                 experiment = Experiment(self.name + "/" + str(epoch), experiments=self, hooks=self.hooks, path=self._path)
+                self.experiment_count += 1
+                with experiment:
+                    yield experiment
 
-                yield experiment
+    def __enter__(self):
+        print("Begin experiments under prefix {}".format(self.name))
 
-                experiment.done = True
-                experiment.hooks.experiment_end()
-
-                if (epoch) == number:
-                    self.done = True
-                    self.hooks.experiments_end()
+    def __exit__(self, *args):
+        self.done = True
+        self.hooks.experiments_end()
