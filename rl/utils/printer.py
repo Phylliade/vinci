@@ -3,9 +3,18 @@ BG_GREEN = "\033[42m"
 FG_RED = "\033[31m"
 
 
-def print_info(*args):
-    print(BG_GREEN, *args, END)
+def args(f):
+    def f_args(*args):
+        string = ""
+        for arg in args:
+            string += str(arg)
+        f(string)
+    return(f_args)
 
 
-def print_warning(*args):
-    print(FG_RED, *args, END)
+def print_info(string):
+    print(BG_GREEN + string + END)
+
+
+def print_warning(string):
+    print(FG_RED + string + END)

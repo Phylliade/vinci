@@ -10,8 +10,11 @@ class ArrayHook(Hook):
         # Rewards
         self.experiments_rewards = []
 
-        # Episodes
-        self.experiments_episodes = []
+        # Episode
+        self.experiments_episode = []
+
+        # Step
+        self.experiments_step = []
 
         # Training
         self.experiments_istraining = []
@@ -26,8 +29,11 @@ class ArrayHook(Hook):
         # Rewards
         self.experiment_rewards = []
 
-        # Episodes
+        # Episode
         self.experiment_episode = []
+
+        # Step
+        self.experiment_step = []
 
         # Training
         self.experiment_istraining = []
@@ -45,10 +51,12 @@ class ArrayHook(Hook):
         # Rewards
         self.experiment_rewards.append(self.run_rewards)
         self.run_rewards = []
-        # Episodes
+        # Episode
         self.experiment_episode.append(self.agent.episode)
         # IsTraining
         self.experiment_istraining.append(self.agent.training)
+        # Step
+        self.experiment_step.append(self.agent.step)
 
     def _experiment_call(self):
         # Rewards
@@ -59,9 +67,13 @@ class ArrayHook(Hook):
         self.experiments_istraining.append(self.experiment_istraining)
         self.experiment_istraining = []
 
-        # Episodes count
-        self.experiments_episodes.append(self.experiment_episode)
+        # Episode count
+        self.experiments_episode.append(self.experiment_episode)
         self.experiment_episode = []
+
+        # Step count
+        self.experiments_step.append(self.experiment_step)
+        self.experiment_step = []
 
         # Experiment index
         self.experiment_index.append(self.experiments.experiment_count)
@@ -81,11 +93,20 @@ class ArrayHook(Hook):
         rewards.index.name = "experiment"
         rewards.to_pickle(self.endpoint + "reward.p")
 
-        episodes = pd.DataFrame(self.experiments_episodes, index=self.experiment_index)
-        episodes.to_pickle(self.endpoint + "episodes.p")
+        episode = pd.DataFrame(self.experiments_episode, index=self.experiment_index)
+        episode.columns.name = "runs"
+        episode.index.name = "experiment"
+        episode.to_pickle(self.endpoint + "episode.p")
 
         training = pd.DataFrame(self.experiments_istraining, index=self.experiment_index)
+        training.columns.name = "runs"
+        training.index.name = "experiment"
         training.to_pickle(self.endpoint + "training.p")
+
+        step = pd.DataFrame(self.experiments_step, index=self.experiment_index)
+        step.columns.name = "runs"
+        step.index.name = "experiment"
+        step.to_pickle(self.endpoint + "step.p")
 
 
 class TestArrayHook(ArrayHook):

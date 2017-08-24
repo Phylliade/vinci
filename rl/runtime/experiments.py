@@ -25,7 +25,7 @@ class Experiments():
         print_info("Beginning {} experiments".format(number))
 
         for epoch in range(1, number + 1):
-            print_info("Experiment {}/{}")
+            print_info("Experiment {}/{}".format(epoch, number))
             experiment = Experiment(self.name + "/" + str(epoch), experiments=self, hooks=self.hooks, path=self._path)
             self.experiment_count += 1
             with experiment:
