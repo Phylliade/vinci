@@ -208,125 +208,118 @@ class Agent(object):
         self.action = None
         self.step_summaries = None
 
-        try:
-            # Run steps (and episodes) until the termination criterion is met
-            while not (self.run_done):
-                # Init episode
-                # If we are at the beginning of a new episode, execute a startup sequence
+        # Run steps (and episodes) until the termination criterion is met
+        while not (self.run_done):
+            # Init episode
+            # If we are at the beginning of a new episode, execute a startup sequence
+            if self.done:
+                self.episode += 1
+                self.episode_reward = 0.
+                self.episode_step = 0
+                callbacks.on_episode_begin(self.episode)
+
+                # Obtain the initial observation by resetting the environment.
+                self.reset_states()
+                observation_0 = deepcopy(env.reset())
+                assert observation_0 is not None
+
+                # Perform random steps at beginning of episode and do not record them into the experience.
+                # This slightly changes the start position between games.
+                if nb_max_start_steps != 0:
+                    observation_0 = self._perform_random_steps(
+                        nb_max_start_steps, start_step_policy, env,
+                        observation_0, callbacks)
+
+            else:
+                # We are in the middle of an episode
+                # Update the observation
+                observation_0 = self.observation_1
+                # Increment the episode step
+
+            # FIXME: Use only one of the two variables
+            self.observation = observation_0
+
+            # Increment the current step in both cases
+            self.step += 1
+            self.episode_step += 1
+            self.reward = 0.
+            self.step_summaries = []
+            accumulated_info = {}
+
+            # Run a single step.
+            callbacks.on_step_begin(self.episode_step)
+            # This is were all of the work happens. We first perceive and compute the action
+            # (forward step) and then use the reward to improve (backward step).
+
+            # state_0 -- (foward) --> action
+            self.action = self.forward(self.observation)
+
+            # action -- (step) --> (reward, state_1, terminal)
+            # Apply the action
+            # With repetition, if necesarry
+            for _ in range(action_repetition):
+                callbacks.on_action_begin(self.action)
+                self.observation_1, r, self.done, info = env.step(self.action)
+                # observation_1 = deepcopy(observation_1)
+
+                for key, value in info.items():
+                    if not np.isreal(value):
+                        continue
+                    if key not in accumulated_info:
+                        accumulated_info[key] = np.zeros_like(value)
+                    accumulated_info[key] += value
+                callbacks.on_action_end(self.action)
+
+                self.reward += r
+
+                # Set episode as finished if the environment has terminated
                 if self.done:
-                    self.episode += 1
-                    self.episode_reward = 0.
-                    self.episode_step = 0
-                    callbacks.on_episode_begin(self.episode)
+                    break
 
-                    # Obtain the initial observation by resetting the environment.
-                    self.reset_states()
-                    observation_0 = deepcopy(env.reset())
-                    assert observation_0 is not None
+            # Scale the reward
+            self.reward = self.reward * reward_scaling
+            self.episode_reward += self.reward
 
-                    # Perform random steps at beginning of episode and do not record them into the experience.
-                    # This slightly changes the start position between games.
-                    if nb_max_start_steps != 0:
-                        observation_0 = self._perform_random_steps(
-                            nb_max_start_steps, start_step_policy, env,
-                            observation_0, callbacks)
+            # End of the step
+            # Stop episode if reached the step limit
+            if nb_max_episode_steps and self.episode_step >= nb_max_episode_steps:
+                # Force a terminal state.
+                self.done = True
 
-                else:
-                    # We are in the middle of an episode
-                    # Update the observation
-                    observation_0 = self.observation_1
-                    # Increment the episode step
+            # Stop run if termination criterion met
+            if termination():
+                self.run_done = True
+                self.hooks.run_end()
 
-                # FIXME: Use only one of the two variables
-                self.observation = observation_0
+            # Post step: training, callbacks and hooks
+            # Train the algorithm
+            self.backward()
 
-                # Increment the current step in both cases
-                self.step += 1
-                self.episode_step += 1
-                self.reward = 0.
-                self.step_summaries = []
-                accumulated_info = {}
+            # Hooks
+            self.hooks()
 
-                # Run a single step.
-                callbacks.on_step_begin(self.episode_step)
-                # This is were all of the work happens. We first perceive and compute the action
-                # (forward step) and then use the reward to improve (backward step).
+            # Callbacks
+            # Collect statistics
+            step_logs = {
+                'action': self.action,
+                'observation': self.observation_1,
+                'reward': self.reward,
+                # For legacy callbacks upport
+                'metrics': [],
+                'episode': self.episode,
+                'info': accumulated_info,
+            }
+            callbacks.on_step_end(self.episode_step, step_logs)
 
-                # state_0 -- (foward) --> action
-                self.action = self.forward(self.observation)
-
-                # action -- (step) --> (reward, state_1, terminal)
-                # Apply the action
-                # With repetition, if necesarry
-                for _ in range(action_repetition):
-                    callbacks.on_action_begin(self.action)
-                    self.observation_1, r, self.done, info = env.step(self.action)
-                    # observation_1 = deepcopy(observation_1)
-
-                    for key, value in info.items():
-                        if not np.isreal(value):
-                            continue
-                        if key not in accumulated_info:
-                            accumulated_info[key] = np.zeros_like(value)
-                        accumulated_info[key] += value
-                    callbacks.on_action_end(self.action)
-
-                    self.reward += r
-
-                    # Set episode as finished if the environment has terminated
-                    if self.done:
-                        break
-
-                # Scale the reward
-                self.reward = self.reward * reward_scaling
-                self.episode_reward += self.reward
-
-                # End of the step
-                # Stop episode if reached the step limit
-                if nb_max_episode_steps and self.episode_step >= nb_max_episode_steps:
-                    # Force a terminal state.
-                    self.done = True
-
-                # Stop run if termination criterion met
-                if termination():
-                    self.run_done = True
-                    self.hooks.run_end()
-
-                # Post step: training, callbacks and hooks
-                # Train the algorithm
-                self.backward()
-
-                # Hooks
-                self.hooks()
-
-                # Callbacks
+            # Episodic callbacks
+            if self.done:
                 # Collect statistics
-                step_logs = {
-                    'action': self.action,
-                    'observation': self.observation_1,
-                    'reward': self.reward,
-                    # For legacy callbacks upport
-                    'metrics': [],
-                    'episode': self.episode,
-                    'info': accumulated_info,
+                episode_logs = {
+                    'episode_reward': np.float_(self.episode_reward),
+                    'nb_episode_steps': np.float_(self.episode_step),
+                    'nb_steps': np.float_(self.step),
                 }
-                callbacks.on_step_end(self.episode_step, step_logs)
-
-                # Episodic callbacks
-                if self.done:
-                    # Collect statistics
-                    episode_logs = {
-                        'episode_reward': np.float_(self.episode_reward),
-                        'nb_episode_steps': np.float_(self.episode_step),
-                        'nb_steps': np.float_(self.step),
-                    }
-                    callbacks.on_episode_end(self.episode, logs=episode_logs)
-
-        except KeyboardInterrupt:
-            # We catch keyboard interrupts here so that training can be be safely aborted.
-            # This is so common that we've built this right into this function, which ensures that
-            # the `on_train_end` method is properly called.
-            did_abort = True
+                callbacks.on_episode_end(self.episode, logs=episode_logs)
 
         callbacks.on_train_end(logs={'did_abort': did_abort})
         self._on_train_end()

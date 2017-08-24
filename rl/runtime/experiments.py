@@ -21,11 +21,14 @@ class Experiments():
         return(self._root_experiment.endpoint(path))
 
     def experiments(self, number):
-            for epoch in range(1, number + 1):
-                experiment = Experiment(self.name + "/" + str(epoch), experiments=self, hooks=self.hooks, path=self._path)
-                self.experiment_count += 1
-                with experiment:
-                    yield experiment
+        print("\033[42mBeginning {} experiments\033[0m".format(number))
+
+        for epoch in range(1, number + 1):
+            print("\033[42mExperiment {}/{}\033[0m".format(epoch, number))
+            experiment = Experiment(self.name + "/" + str(epoch), experiments=self, hooks=self.hooks, path=self._path)
+            self.experiment_count += 1
+            with experiment:
+                yield experiment
 
     def __enter__(self):
         print("\033[42mBegin experiments under prefix {}\033[0m".format(self.name))
