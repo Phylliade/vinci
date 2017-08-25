@@ -27,3 +27,12 @@ def print_debug(string):
     These statements are only temporary, to make code work
     """
     print(BG_MAGENTA + string + END)
+
+
+def print_status(string, terminal=False):
+    """Print with no newline"""
+    if terminal:
+        end = "\n"
+    else:
+        end = ""
+    print("\r" + string, end=end)

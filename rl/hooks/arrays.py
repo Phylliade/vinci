@@ -85,12 +85,13 @@ class ArrayHook(Hook):
         # Experiment index
         self.experiment_index.append(self.experiments.experiment_count)
 
-        # Save every 5 experiments
-        if (self.experiments.experiment_count % 5 == 0):
+        # Save every at experiment
+        if (self.experiments.experiment_count % 1 == 0):
             self.save()
 
     def _experiments_call(self):
-        self.save()
+        pass
+        # self.save()
 
     def save(self):
         print("Saving data")

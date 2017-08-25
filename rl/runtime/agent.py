@@ -9,6 +9,7 @@ import keras.backend as K
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 from rl.hooks import Hooks
+from rl.utils.printer import print_status
 from .experiment import Experiment
 # Other hooks are imported on the fly when required
 
@@ -397,7 +398,7 @@ class Agent(object):
         hooks = Hooks(self, hooks_list)
 
         # We could use a termination criterion, based on step instead of epoch, as in  _run
-        for epoch in range(epochs):
+        for epoch in range(1, epochs + 1):
             if self.done:
                 self.episode += 1
                 if self.training:
@@ -419,7 +420,7 @@ class Agent(object):
 
             # Post step
             # Train the networks
-            print("\rTraining epoch: {}/{} ".format(epoch + 1, epochs), end="")
+            print_status("Training epoch: {}/{} ".format(epoch, epochs), terminal=(epoch == epochs))
             self.backward(offline=True)
 
             # Hooks
