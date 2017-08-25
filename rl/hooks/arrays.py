@@ -60,7 +60,6 @@ class ArrayHook(Hook):
         # IsTraining
         self.experiment_istraining.append(self.agent.training)
         # Step
-        print(self.agent.training_step)
         self.experiment_step.append(self.agent.training_step)
 
         # Run index

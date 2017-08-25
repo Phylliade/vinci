@@ -85,15 +85,15 @@ class SimpleMemory(Memory):
         self.buffer.append(experience)
 
     @classmethod
-    def from_file(cls, limit, window_length, file_path):
+    def from_file(cls, env, limit, file_path):
         """Create a memory from a pickle file"""
         with open(file_path, "rb") as fd:
             memory_database = pickle.load(fd)
 
-        memory = cls(limit, window_length)
+        memory = cls(limit=limit, env=env)
 
         for experience in memory_database:
-            memory.append(*experience)
+            memory.append(Experience(*experience))
 
         return(memory)
 
