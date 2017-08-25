@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 END = "\033[0m"
 BG_GREEN = "\033[42m"
 FG_RED = "\033[31m"

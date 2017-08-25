@@ -1,5 +1,4 @@
 # For python2 support
-from __future__ import print_function
 import warnings
 from copy import deepcopy
 
