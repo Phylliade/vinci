@@ -36,7 +36,7 @@ with my_expe:
         )
         agent.compile()
 
-        agent.fit(
+        agent.train(
             env=env,
             nb_episodes=1,
             visualize=False,

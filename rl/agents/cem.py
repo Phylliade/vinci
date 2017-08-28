@@ -6,10 +6,10 @@ import numpy as np
 import keras.backend as K
 from keras.models import Model
 
-from rl.agent import Agent
+from rl.agents.rlagent import RLAgent
 from rl.util import *
 
-class CEMAgent(Agent):
+class CEMAgent(RLAgent):
     """Write me
     """
     def __init__(self, model, nb_actions, memory, batch_size=50, nb_steps_warmup=1000,

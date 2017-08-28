@@ -6,11 +6,12 @@ import tensorflow as tf
 # Remove use of Keras backend
 import keras.backend as K
 
-from rl.runtime.agent import Agent
 from rl.utils.model import clone_model, get_soft_target_model_ops
 from rl.utils.numerics import gradient_inverter, huber_loss
 from rl.memory import Experience
+from rl.agents.rlagent import RLAgent
 from rl.utils.printer import print_warning
+
 
 # Whether to use Keras inference engine
 USE_KERAS_INFERENCE = False
@@ -20,7 +21,7 @@ def mean_q(y_true, y_pred):
     return K.mean(K.max(y_pred, axis=-1))
 
 
-class DDPGAgent(Agent):
+class DDPGAgent(RLAgent):
     """
     Deep Deterministic Policy Gradient Agent as defined in https://arxiv.org/abs/1509.02971.
 
