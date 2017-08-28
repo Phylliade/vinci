@@ -14,7 +14,15 @@ class Agent(object):
         raise(NotImplementedError())
 
     def train(self, **kwargs):
-        self.run(train=True, **kwargs)
+        """
+        Train the agent. On the contrary of :func:`test`, learning is involved
+        See :func:`_run` for the argument list.
+        """
+        return(self._run(train=True, **kwargs))
 
     def test(self, **kwargs):
-        self.run(train=False, **kwargs)
+        """
+        Test the agent. On the contrary of :func:`fit`, no learning is involved
+        See :func:`_run` for the argument list.
+        """
+        return(self._run(train=False, **kwargs))

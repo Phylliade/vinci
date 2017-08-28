@@ -71,7 +71,7 @@ class RLAgent(Agent):
              env,
              nb_steps=None,
              nb_episodes=None,
-             training=True,
+             train=True,
              action_repetition=1,
              callbacks=None,
              verbose=1,
@@ -128,7 +128,7 @@ class RLAgent(Agent):
                 "Please specify one (and only one) of nb_steps or nb_episodes"
             ))
 
-        self.training = training
+        self.training = train
 
         # Initialize callbacks
         if callbacks is None:
@@ -350,23 +350,6 @@ class RLAgent(Agent):
                 observation = deepcopy(env.reset())
                 break
         return (observation)
-
-    def train(self, **kwargs):
-        """
-        Train the agent. On the contrary of :func:`test`, learning is involved
-        See :func:`_run` for the argument list.
-        """
-        return(self._run(training=True, **kwargs))
-
-    def test(self, record=True, **kwargs):
-        """
-        Test the agent. On the contrary of :func:`fit`, no learning is involved
-        Also, noise is removed.
-
-        :param bool record: Record the episodes. It False,
-
-        """
-        return(self._run(training=False, **kwargs))
 
     def fit_offline(self,
                     epochs=1,
