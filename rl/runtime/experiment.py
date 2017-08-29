@@ -47,7 +47,9 @@ class Experiment(PersistentExperiment):
         self.done = False
         self.experiments = experiments
         self.run_count = 0
-        self.agent_count = 0
+        self.next_agent_id = 0
+        # We only need to store the agent names, not the agent themselves for the moment
+        self.agents = []
 
         # End of init
         # Register in the runtime
@@ -78,12 +80,16 @@ class Experiment(PersistentExperiment):
         self.run_count += 1
         return (run)
 
-    def new_agent_id(self):
-        self.agent_count += 1
-        return (self.agent_count)
+    def get_new_agent_id(self):
+        return(self.next_agent_id)
 
-    def add_agent_id(self, id):
-        self.agent_count += 1
+    def add_agent(self, agent):
+        """Add the agent to the experiment registers, and return its id"""
+        if agent.name in self.agents:
+            raise(NameError("An agent with the name {} already exists".format(agent.name)))
+        else:
+            self.agents.append(agent.name)
+            self.next_agent_id += 1
 
 
 class RootExperiment(PersistentExperiment):

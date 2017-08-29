@@ -5,19 +5,26 @@ from rl.hooks import Hooks
 
 class Agent(object):
     """Abstract class for an agent"""
-    def __init__(self, experiment=None, id=None, hooks=None):
+    def __init__(self, experiment=None, hooks=None, name=None):
         if experiment is None:
             # Since we are using "default", we can overwrite it.
             self.experiment = Experiment(experiment_id="default", force=True)
         else:
             self.experiment = experiment
 
+        # FIXME: add_agent is dependant on the name, whereas the name (if none) requires the id...
         # Get an ID
-        if id is None:
-            self.id = self.experiment.new_agent_id()
+        self.id = self.experiment.get_new_agent_id()
+
+        # Get a name if not given
+        if name is None:
+            self.name = "agent-" + str(self.id)
         else:
-            self.id = id
-            self.experiment.add_agent_id(id)
+            self.name = name
+
+        self.experiment.add_agent(self)
+
+        # End of initialization
         # Register in the runtime
         runtime().register_agent(self)
 

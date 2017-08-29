@@ -83,7 +83,7 @@ class DDPGAgent(RLAgent):
                 'Critic "{}" does not have enough inputs. The critic must have at exactly two inputs, one for the action and one for the observation.'.
                 format(critic))
 
-        super(DDPGAgent, self).__init__(**kwargs)
+        super(DDPGAgent, self).__init__(name="ddpg", **kwargs)
 
         # Get placeholders
         self.variables["state"] = env.state

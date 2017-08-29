@@ -2,7 +2,7 @@ from .hook import ValidationHook
 
 
 class Hooks:
-    """Class to instiantiate and call multiple hooks"""
+    """Container class to instiantiate, register, initialize and call multiple hooks"""
     def __init__(self, agent, hooks=None):
         self.agent = agent
         # Use a validationHook by default
@@ -11,16 +11,13 @@ class Hooks:
         if hooks is not None:
             for hook in hooks:
                 # Only append hooks bound to this agent object
-                if self.agent.id == hook.agent_id:
+                if self.agent == hook.agent:
                     self.append(hook)
 
     def __call__(self):
         """Call each of the hooks"""
         for hook in self.hooks:
             hook()
-
-    def __repr__(self):
-        return(str(self.hooks))
 
     def __iter__(self):
         return(iter(self.hooks))
@@ -30,15 +27,14 @@ class Hooks:
             hook._run_call()
 
     def append(self, hook):
-        # if self.agent.id == hook.agent_id:
-        #     hook.register_(agent)
+        if self.agent == hook.agent:
+            hook._agent_init()
+            self.hooks.append(hook)
+        else:
+            raise(Exception("Can't append: Hook's agent ID is {}, whereas current agent ID is {}".format(hook.experiment_id, self.experiment.id)))
 
-        # hook._register()
-        # We begin by registering the agent
-        if hook.agent_id is None:
-            hook.agent_id = self.agent.id
-        hook._agent_init()
-        self.hooks.append(hook)
+    def __repr__(self):
+        return("Hooks object, holding:\n" + repr(self.hooks))
 
 
 class ExperimentHooks(Hooks):
@@ -47,21 +43,23 @@ class ExperimentHooks(Hooks):
         self.experiment = experiment
         if hooks is not None:
             for hook in hooks:
-                # Only append hooks bound to this experiment
-                if self.experiment.id == hook.experiment_id:
-                    self.append(hook)
-                    hook._experiment_init()
+                self.append(hook)
 
     def append(self, hook):
-        # hook._register_experiment(self.experiment)
-        # We begin by registering the experiment
-        if hook.experiment_id is None:
-            hook.experiment_id = self.experiment.id
-        self.hooks.append(hook)
+        # Only append hooks bound to this experiment
+        if self.experiment == hook.experiment:
+            hook._experiment_init()
+            self.hooks.append(hook)
+        else:
+            # We shouldn't have hooks defined on other experiments
+            raise(Exception("Can't append: Hook's experiment ID is {}, whereas current experiment ID is {}".format(hook.experiment_id, self.experiment.id)))
 
     def experiment_end(self):
         for hook in self.hooks:
             hook._experiment_call()
+
+    def __repr__(self):
+        return("ExperimentHooks object, holding:\n" + repr(self.hooks))
 
 
 class ExperimentsHooks(Hooks):
@@ -72,16 +70,19 @@ class ExperimentsHooks(Hooks):
         if hooks is not None:
             for hook in hooks:
                 # Only append hooks bound to this experiments object
-                if self.experiments.id == hook.experiments_id:
-                    self.append(hook)
-                    hook._experiments_init()
+                self.append(hook)
 
     def append(self, hook):
-        # hook._register_experiments(self.experiments)
-        if hook.experiments_id is None:
-            hook.experiments_id = self.experiments.id
-        self.hooks.append(hook)
+        """A method that takes care of registering the experiments on the hook and initialize it, by calling"""
+        if self.experiments == hook.experiments:
+            hook._experiments_init()
+            self.hooks.append(hook)
+        else:
+            raise(Exception("Can't append: Hook's experiments ID is {}, whereas current experiments ID is {}".format(hook.experiments_id, self.experiments.id)))
 
     def experiments_end(self):
         for hook in self.hooks:
             hook._experiments_call()
+
+    def __repr__(self):
+        return("ExperimentsHooks object, holding:\n" + repr(self.hooks))

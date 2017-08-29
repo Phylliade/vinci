@@ -155,11 +155,11 @@ class RLAgent(Agent):
         # Add run hooks
         if tensorboard:
             from rl.hooks.tensorboard import TensorboardHook
-            self.hooks.append(TensorboardHook())
+            self.hooks.append(TensorboardHook(agent_id=self.id))
         if plots:
             from rl.hooks.plot import PortraitHook, TrajectoryHook
-            self.hooks.append(PortraitHook())
-            self.hooks.append(TrajectoryHook())
+            self.hooks.append(PortraitHook(agent_id=self.id))
+            self.hooks.append(TrajectoryHook(agent_id=self.id))
 
         # Define the termination criterion
         # Step and episode at which we satrt the function
@@ -352,11 +352,11 @@ class RLAgent(Agent):
         # Add run hooks
         if tensorboard:
             from rl.hooks.tensorboard import TensorboardHook
-            self.hooks.append(TensorboardHook())
+            self.hooks.append(TensorboardHook(agent_id=self.id))
         if plots:
             from rl.hooks.plot import PortraitHook, TrajectoryHook
-            self.hooks.append(PortraitHook())
-            self.hooks.append(TrajectoryHook())
+            self.hooks.append(PortraitHook(agent_id=self.id))
+            self.hooks.append(TrajectoryHook(agent_id=self.id))
 
         # We could use a termination criterion, based on step instead of epoch, as in  _run
         for epoch in range(1, epochs + 1):

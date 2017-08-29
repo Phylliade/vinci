@@ -31,6 +31,7 @@ class Experiments(object):
         return(self._root_experiment.endpoint(path))
 
     def experiments(self, number):
+        """Get an iterable that returns sequential experiments"""
         print_info("Beginning {} experiments".format(number))
 
         for _ in range(1, number + 1):

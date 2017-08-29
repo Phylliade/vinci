@@ -29,8 +29,6 @@ class Hook(object):
     def __init__(self, agent_id=None, experiment_id=None, experiments_id=None):
         self.runtime = runtime()
         self.agent_id = agent_id
-        self.experiment_id = experiment_id
-        self.experiments_id = experiments_id
 
     def __call__(self):
         raise (NotImplementedError)
@@ -78,11 +76,11 @@ class Hook(object):
 
     @property
     def experiments(self):
-        return(self.runtime.get_experiments(self.experiments_id))
+        return(self.runtime.get_experiments())
 
     @property
     def experiment(self):
-        return(self.runtime.get_experiment(self.experiment_id))
+        return(self.runtime.get_experiment())
 
     @property
     def agent(self):

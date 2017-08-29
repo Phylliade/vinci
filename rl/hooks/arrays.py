@@ -85,7 +85,7 @@ class ArrayHook(Hook):
         # Experiment index
         self.experiment_index.append(self.experiments.experiment_count)
 
-        # Save every at experiment
+        # Save every experiment
         if (self.experiments.experiment_count % 1 == 0):
             self.save()
 

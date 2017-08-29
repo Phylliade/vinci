@@ -1,51 +1,43 @@
+DEFAULT_AGENT = 0
+
+
 class Runtime(object):
     """A object keeping a trace of the whole runtime hierarchy"""
+    # TODO: Remove the unused agents / experiments / experiments objects...
+    # And add a minimal GC to avoid leaks
     def __init__(self):
         self.agents = {}
         self.default_agent = None
-        self.experiment = {}
-        self.default_experiment = None
-        self.experiments = {}
-        self.default_experiments = None
+        self.current_experiment = None
+        self.current_experiments = None
 
     def register_agent(self, agent):
+        if agent.id in self.agents:
+            del self.agents[agent.id]
         self.agents[agent.id] = agent
-        if self.default_agent is None:
-            self.default_agent = agent
 
     def register_experiment(self, experiment):
-        self.experiment[experiment.id] = experiment
-        if self.default_experiment is None:
-            self.default_experiment = experiment
+        del self.current_experiment
+        self.current_experiment = experiment
 
     def register_experiments(self, experiments):
-        self.experiments[experiments.id] = experiments
-        if self.default_experiments is None:
-            self.default_experiments = experiments
+        del self.current_experiments
+        self.current_experiments = experiments
 
     def get_agent(self, id=None):
         if id is None:
-            agent = self.default_agent
+            agent = self.agents[DEFAULT_AGENT]
         else:
             agent = self.agents[id]
 
         return(agent)
 
-    def get_experiment(self, id=None):
-        if id is None:
-            experiment = self.default_experiment
-        else:
-            experiment = self.experiment[id]
-
-        return(experiment)
+    def get_experiment(self):
+        return(self.current_experiment)
 
     def get_experiments(self, id=None):
-        if id is None:
-            experiments = self.default_experiments
-        else:
-            experiments = self.experiments[id]
+        return(self.current_experiments)
 
-        return(experiments)
 
 # Global runtime variable
 _runtime = Runtime()
