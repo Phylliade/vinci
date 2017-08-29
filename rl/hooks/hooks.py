@@ -24,11 +24,11 @@ class Hooks:
 
     def run_end(self):
         for hook in self.hooks:
-            hook._run_call()
+            hook.run_end()
 
     def append(self, hook):
         if self.agent == hook.agent:
-            hook._agent_init()
+            hook.agent_init()
             self.hooks.append(hook)
         else:
             raise(Exception("Can't append: Hook's agent ID is {}, whereas current agent ID is {}".format(hook.experiment_id, self.experiment.id)))
@@ -48,7 +48,7 @@ class ExperimentHooks(Hooks):
     def append(self, hook):
         # Only append hooks bound to this experiment
         if self.experiment == hook.experiment:
-            hook._experiment_init()
+            hook.experiment_init()
             self.hooks.append(hook)
         else:
             # We shouldn't have hooks defined on other experiments
@@ -56,7 +56,7 @@ class ExperimentHooks(Hooks):
 
     def experiment_end(self):
         for hook in self.hooks:
-            hook._experiment_call()
+            hook.experiment_end()
 
     def __repr__(self):
         return("ExperimentHooks object, holding:\n" + repr(self.hooks))
@@ -75,14 +75,14 @@ class ExperimentsHooks(Hooks):
     def append(self, hook):
         """A method that takes care of registering the experiments on the hook and initialize it, by calling"""
         if self.experiments == hook.experiments:
-            hook._experiments_init()
+            hook.experiments_init()
             self.hooks.append(hook)
         else:
             raise(Exception("Can't append: Hook's experiments ID is {}, whereas current experiments ID is {}".format(hook.experiments_id, self.experiments.id)))
 
     def experiments_end(self):
         for hook in self.hooks:
-            hook._experiments_call()
+            hook.experiments_end()
 
     def __repr__(self):
         return("ExperimentsHooks object, holding:\n" + repr(self.hooks))

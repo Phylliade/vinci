@@ -4,10 +4,11 @@ import pandas as pd
 
 class ArrayHook(Hook):
     def __init__(self, *args, **kwargs):
+        # Also works to put in experiments_init
         super(ArrayHook, self).__init__(*args, **kwargs)
         self.endpoint = self.experiments.endpoint("data")
 
-    def _experiments_init(self):
+    def experiments_init(self):
         self.endpoint = self.experiments.endpoint("data")
 
         # Rewards
@@ -27,7 +28,7 @@ class ArrayHook(Hook):
         # Lists of experiments
         self.experiment_index = []
 
-    def _experiment_init(self):
+    def experiment_init(self):
         # Rewards
         self.experiment_rewards = []
 
@@ -44,14 +45,14 @@ class ArrayHook(Hook):
         self.run_index = []
 
     # TODO: Put run_rewards in _register_run
-    def _agent_init(self):
+    def agent_init(self):
         self.run_rewards = []
 
     def __call__(self):
         if self.agent.done:
             self.run_rewards.append(self.agent.episode_reward)
 
-    def _run_call(self):
+    def run_end(self):
         # Rewards
         self.experiment_rewards.append(self.run_rewards)
         self.run_rewards = []
@@ -65,7 +66,7 @@ class ArrayHook(Hook):
         # Run index
         self.run_index.append(self.agent.run_number)
 
-    def _experiment_call(self):
+    def experiment_end(self):
         # Rewards
         self.experiments_rewards.append(self.experiment_rewards)
         self.experiment_rewards = []
@@ -89,7 +90,7 @@ class ArrayHook(Hook):
         if (self.experiments.experiment_count % 1 == 0):
             self.save()
 
-    def _experiments_call(self):
+    def experiments_end(self):
         pass
         # self.save()
 
@@ -123,7 +124,7 @@ class TestArrayHook(ArrayHook):
         if not self.agent.training:
             super(TestArrayHook, self).__call__()
 
-    def _run_call(self):
+    def run_end(self):
         # Only activate during testing
         if not self.agent.training:
-            super(TestArrayHook, self)._run_call()
+            super(TestArrayHook, self)._run_end()

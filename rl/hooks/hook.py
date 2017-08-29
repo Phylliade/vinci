@@ -26,7 +26,11 @@ class Hook(object):
     :param agent: the RL agent
     :param episodic: Whether the hook will use episode information
     """
-    def __init__(self, agent_id=None, experiment_id=None, experiments_id=None):
+    def __init__(self, agent_id=None):
+        """
+        Specify the agent object the hook must monitor
+        If left to None, the hook will use the default agent
+        """
         self.runtime = runtime()
         self.agent_id = agent_id
 
@@ -34,45 +38,29 @@ class Hook(object):
         raise (NotImplementedError)
 
     # Optional calls
-    def _run_call(self):
+    def run_init(self):
         pass
 
-    def _experiment_call(self):
+    def run_end(self):
         pass
 
-    def experiments_call(self):
-        pass
-
-    def _register_run(self, run):
-        """Register the agent"""
-        self.run = run
-
-    def _register_agent(self):
-        """Register the agent"""
-        pass
-        # self.agent = self.runtime.get_agent(self.agent_id)
-
-    def _register_experiment(self, experiment):
-        """Register the agent"""
-        pass
-        # self.experiment = self.runtime.get_experiment(self.experiment_id)
-
-    def _register_experiments(self, experiments):
-        """Register the agent"""
-        pass
-        # self.experiments = self.runtime.get_experiments(self.experiments_id)
-
-    def _agent_init(self):
+    def agent_init(self):
         """Callback that is called when the agent is initialized"""
         pass
 
-    def _experiment_init(self):
+    def experiment_init(self):
         """Callback that is called when the experiment is initialized"""
         pass
 
-    def _experiments_init(self):
+    def experiment_end(self):
+        pass
+
+    def experiments_init(self):
         """Callback that is called when the experiments object is initialized"""
         pass
+
+    def experiments_end(self):
+            pass
 
     @property
     def experiments(self):

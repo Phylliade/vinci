@@ -3,8 +3,8 @@ from rl.utils.plot import portrait_critic, portrait_actor, plot_trajectory, plot
 
 
 class PortraitHook(Hook):
-    def _agent_init(self, *args, **kwargs):
-        super(PortraitHook, self)._agent_init(*args, **kwargs)
+    def agent_init(self, *args, **kwargs):
+        super(PortraitHook, self).agent_init(*args, **kwargs)
         # Endpoints
         # Portrait
         self.endpoint_actor = self.experiment.endpoint("figures/portrait/actor")

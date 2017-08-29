@@ -3,8 +3,8 @@ from .hook import Hook
 
 
 class TensorboardHook(Hook):
-    def _agent_init(self, *args, **kwargs):
-        super(TensorboardHook, self)._agent_init(*args, **kwargs)
+    def agent_init(self, *args, **kwargs):
+        super(TensorboardHook, self).agent_init(*args, **kwargs)
         self.endpoint = self.experiment.endpoint("tensorboard")
         self.summary_writer = tf.summary.FileWriter(self.endpoint)
 
