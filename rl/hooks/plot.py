@@ -3,8 +3,8 @@ from rl.utils.plot import portrait_critic, portrait_actor, plot_trajectory, plot
 
 
 class PortraitHook(Hook):
-    def _register(self, *args, **kwargs):
-        super(PortraitHook, self)._register(*args, **kwargs)
+    def _agent_init(self, *args, **kwargs):
+        super(PortraitHook, self)._agent_init(*args, **kwargs)
         # Endpoints
         # Portrait
         self.endpoint_actor = self.experiment.endpoint("figures/portrait/actor")
@@ -54,8 +54,8 @@ class PortraitHook(Hook):
 
 class TrajectoryHook(Hook):
     """Records the trajectory of the agent"""
-    def _register(self, *args, **kwargs):
-        super(TrajectoryHook, self)._register(*args, **kwargs)
+    def _agent_init(self, *args, **kwargs):
+        super(TrajectoryHook, self)._agent_init(*args, **kwargs)
         self.trajectory = {"x": [], "y": []}
         self.endpoint = self.experiment.endpoint("figures/trajectory")
 
@@ -78,7 +78,7 @@ class TrajectoryHook(Hook):
 
 class MemoryDistributionHook(Hook):
     def _register(self, *args, **kwargs):
-        super(MemoryDistributionHook, self)._register(*args, **kwargs)
+        super(MemoryDistributionHook, self)._agent_init(*args, **kwargs)
         self.endpoint = self.experiment.endpoint("figures/memory/action")
 
     def __call__(self):

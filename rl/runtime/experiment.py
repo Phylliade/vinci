@@ -28,6 +28,13 @@ class PersistentExperiment(object):
         os.makedirs(self.experiment_base)
         self.endpoints = []
 
+    def endpoint(self, path):
+        self.endpoints.append(path)
+        full_path = self.experiment_base + path.rstrip("/") + "/"
+        # At this point, the experiment path should already be cleared, so there is no need to check for existence of the file
+        os.makedirs(full_path, exist_ok=True)
+        return (full_path)
+
 
 class Experiment(PersistentExperiment):
     def __init__(self,
@@ -58,13 +65,6 @@ class Experiment(PersistentExperiment):
             hooks_list += hooks
 
         self.hooks = ExperimentHooks(self, hooks=hooks_list)
-
-    def endpoint(self, path):
-        self.endpoints.append(path)
-        full_path = self.experiment_base + path.rstrip("/") + "/"
-        # At this point, the experiment path should already be cleared, so there is no need to check for existence of the file
-        os.makedirs(full_path, exist_ok=True)
-        return (full_path)
 
     def __enter__(self):
         print_info("Beginning experiment {}".format(self.id))

@@ -8,7 +8,7 @@ class Agent(object):
     def __init__(self, experiment=None, id=None, hooks=None):
         if experiment is None:
             # Since we are using "default", we can overwrite it.
-            self.experiment = Experiment("default", force=True)
+            self.experiment = Experiment(experiment_id="default", force=True)
         else:
             self.experiment = experiment
 
