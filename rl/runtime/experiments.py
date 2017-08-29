@@ -1,4 +1,4 @@
-from .experiment import Experiment
+from .experiment import Experiment, RootExperiment
 from ..hooks import ExperimentsHooks
 from ..utils.printer import print_info
 from .runtime import runtime
@@ -9,16 +9,17 @@ class Experiments(object):
         self.name = str(name)
         self.id = name
 
-        # Register in the runtime
-        runtime().register_experiments(self)
-        from rl.utils.printer import print_debug
-        print_debug(runtime().experiments)
-
         self.done = False
         self.experiment_count = 0
         self._path = path
         # A special experiment providing endpoints for the experiments object itself
-        self._root_experiment = Experiment(self.name, experiments=self, force=force, path=self._path)
+        self._root_experiment = RootExperiment(experiments=self, force=force)
+
+        # End of init
+        # Register in the runtime
+        runtime().register_experiments(self)
+
+        # Add the hooks
         if hooks is None:
             hooks = []
         if analytics:
@@ -35,7 +36,7 @@ class Experiments(object):
         for _ in range(1, number + 1):
             self.experiment_count += 1
             print_info("Experiment {}/{}".format(self.experiment_count, number))
-            experiment = Experiment(self.name + "/" + str(self.experiment_count), experiments=self, hooks=self.hooks, path=self._path)
+            experiment = Experiment(experiment_id=self.name + "/" + str(self.experiment_count), experiments=self, path=self._path)
             with experiment:
                 yield experiment
 

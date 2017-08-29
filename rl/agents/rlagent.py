@@ -7,7 +7,6 @@ from keras.callbacks import History
 import keras.backend as K
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
-from rl.hooks import Hooks
 from rl.utils.printer import print_status
 from rl.runtime.agent import Agent
 # Other hooks are imported on the fly when required
@@ -33,19 +32,6 @@ class RLAgent(Agent):
         self.variables = {}
         # And their corresponding summaries
         self.summary_variables = {}
-
-        # Hooks
-        # Initialize the Hooks
-        if self.experiment.hooks is not None:
-            # Be sure to copy the list
-            hooks_list = list(self.experiment.hooks)
-        else:
-            hooks_list = []
-
-        if hooks is not None:
-            hooks_list += hooks
-
-        self.hooks = Hooks(self, hooks_list)
 
         # Setup hook variables
         self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
@@ -166,8 +152,7 @@ class RLAgent(Agent):
         else:
             callbacks._set_params(params)
 
-        # Configure hooks
-        # TODO: use plots and tensorboard args
+        # Add run hooks
         if tensorboard:
             from rl.hooks.tensorboard import TensorboardHook
             self.hooks.append(TensorboardHook())
@@ -364,16 +349,14 @@ class RLAgent(Agent):
         self.done = True
         self.run_number += 1
 
-        # Initialize the Hooks
-        hooks_list = []
+        # Add run hooks
         if tensorboard:
             from rl.hooks.tensorboard import TensorboardHook
-            hooks_list.append(TensorboardHook())
+            self.hooks.append(TensorboardHook())
         if plots:
             from rl.hooks.plot import PortraitHook, TrajectoryHook
-            hooks_list.append(PortraitHook())
-            hooks_list.append(TrajectoryHook())
-        hooks = Hooks(self, hooks_list)
+            self.hooks.append(PortraitHook())
+            self.hooks.append(TrajectoryHook())
 
         # We could use a termination criterion, based on step instead of epoch, as in  _run
         for epoch in range(1, epochs + 1):
@@ -402,7 +385,7 @@ class RLAgent(Agent):
             self.backward(offline=True)
 
             # Hooks
-            hooks()
+            self.hooks()
 
         # End of the run
         self.hooks.run_end()

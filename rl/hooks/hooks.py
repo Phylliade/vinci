@@ -13,7 +13,6 @@ class Hooks:
                 # Only append hooks bound to this agent object
                 if self.agent.id == hook.agent_id:
                     self.append(hook)
-                    hook._agent_init()
 
     def __call__(self):
         """Call each of the hooks"""
@@ -35,6 +34,10 @@ class Hooks:
         #     hook.register_(agent)
 
         # hook._register()
+        # We begin by registering the agent
+        if hook.agent_id is None:
+            hook.agent_id = self.agent.id
+        hook._agent_init()
         self.hooks.append(hook)
 
 
@@ -51,6 +54,9 @@ class ExperimentHooks(Hooks):
 
     def append(self, hook):
         # hook._register_experiment(self.experiment)
+        # We begin by registering the experiment
+        if hook.experiment_id is None:
+            hook.experiment_id = self.experiment.id
         self.hooks.append(hook)
 
     def experiment_end(self):
@@ -72,6 +78,8 @@ class ExperimentsHooks(Hooks):
 
     def append(self, hook):
         # hook._register_experiments(self.experiments)
+        if hook.experiments_id is None:
+            hook.experiments_id = self.experiments.id
         self.hooks.append(hook)
 
     def experiments_end(self):

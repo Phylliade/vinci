@@ -27,7 +27,6 @@ class Hook(object):
     :param episodic: Whether the hook will use episode information
     """
     def __init__(self, agent_id=None, experiment_id=None, experiments_id=None):
-        self.registered = False
         self.runtime = runtime()
         self.agent_id = agent_id
         self.experiment_id = experiment_id
@@ -49,9 +48,8 @@ class Hook(object):
     def _register_run(self, run):
         """Register the agent"""
         self.run = run
-        # self.registered = True
 
-    def _register(self):
+    def _register_agent(self):
         """Register the agent"""
         pass
         # self.agent = self.runtime.get_agent(self.agent_id)

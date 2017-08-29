@@ -1,10 +1,11 @@
 from .experiment import Experiment
 from .runtime import runtime
+from rl.hooks import Hooks
 
 
 class Agent(object):
     """Abstract class for an agent"""
-    def __init__(self, experiment=None, id=None):
+    def __init__(self, experiment=None, id=None, hooks=None):
         if experiment is None:
             # Since we are using "default", we can overwrite it.
             self.experiment = Experiment("default", force=True)
@@ -21,7 +22,18 @@ class Agent(object):
         runtime().register_agent(self)
 
         # Manage hooks
-        pass
+        # Initialize the Hooks
+        if self.experiment.hooks is not None:
+            # Be sure to copy the list
+            hooks_list = list(self.experiment.hooks)
+        else:
+            hooks_list = []
+
+        # Add user provided hooks
+        if hooks is not None:
+            hooks_list += hooks
+
+        self.hooks = Hooks(self, hooks_list)
 
     def _run(self, train=True):
         raise(NotImplementedError())
