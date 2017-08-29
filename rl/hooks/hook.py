@@ -1,3 +1,6 @@
+from rl.runtime.runtime import runtime
+
+
 class Hook(object):
     """
     The abstract Hook class.
@@ -23,10 +26,12 @@ class Hook(object):
     :param agent: the RL agent
     :param episodic: Whether the hook will use episode information
     """
-    def __init__(self, agent=None):
-        if agent is not None:
-            self._register(agent)
+    def __init__(self, agent_id=None, experiment_id=None, experiments_id=None):
         self.registered = False
+        self.runtime = runtime()
+        self.agent = self.runtime.get_agent(agent_id)
+        self.experiment = self.runtime.get_agent(experiment_id)
+        self.experiments = self.runtime.get_agent(experiments_id)
 
     def __call__(self):
         raise (NotImplementedError)
@@ -48,20 +53,22 @@ class Hook(object):
 
     def _register(self, agent):
         """Register the agent"""
-        self.agent = agent
-        # TODO: Create a _register_experiment method
-        self.experiment = agent.experiment
-        self.registered = True
+        pass
+        # self.agent = agent
+        # self.experiment = agent.experiment
+        # self.registered = True
 
     def _register_experiment(self, experiment):
         """Register the agent"""
-        self.experiment = experiment
-        # self.registered = True
+        pass
+        # self.experiment = experiment
+        # # self.registered = True
 
     def _register_experiments(self, experiments):
         """Register the agent"""
-        self.experiments = experiments
-        # self.registered = True
+        pass
+        # self.experiments = experiments
+        # # self.registered = True
 
     @property
     def count(self):
@@ -70,8 +77,8 @@ class Hook(object):
 
 class ValidationHook(Hook):
     """Perform validation of the hooks variables at runtime"""
-    def _register(self, *args, **kwargs):
-        super(ValidationHook, self)._register(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super(ValidationHook, self).__init__(*args, **kwargs)
         self.validated = False
 
     def __call__(self):

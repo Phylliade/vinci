@@ -6,7 +6,7 @@ class Hooks:
     def __init__(self, agent, hooks=None):
         self.agent = agent
         # Use a validationHook by default
-        self.hooks = [ValidationHook(agent)]
+        self.hooks = [ValidationHook(agent_id=agent.id)]
 
         if hooks is not None:
             for hook in hooks:

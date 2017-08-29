@@ -1,14 +1,27 @@
 from .experiment import Experiment
+from .runtime import runtime
 
 
 class Agent(object):
     """Abstract class for an agent"""
-    def __init__(self, experiment=None):
+    def __init__(self, experiment=None, id=None):
         if experiment is None:
             # Since we are using "default", we can overwrite it.
             self.experiment = Experiment("default", force=True)
         else:
             self.experiment = experiment
+
+        # Get an ID
+        if id is None:
+            self.id = self.experiment.new_agent_id()
+        else:
+            self.id = id
+            self.experiment.add_agent_id(id)
+        # Register in the runtime
+        runtime().register_agent(self)
+
+        # Manage hooks
+        pass
 
     def _run(self, train=True):
         raise(NotImplementedError())

@@ -1,11 +1,17 @@
 from .experiment import Experiment
 from ..hooks import ExperimentsHooks
 from ..utils.printer import print_info
+from .runtime import runtime
 
 
 class Experiments(object):
     def __init__(self, name, analytics=False, hooks=None, force=False, path="./experiments"):
         self.name = str(name)
+        self.id = name
+
+        # Register in the runtime
+        runtime().register_experiments(self)
+
         self.done = False
         self.experiment_count = 0
         self._path = path

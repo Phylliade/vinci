@@ -4,17 +4,23 @@ from rl.hooks import ExperimentHooks
 # from contextlib import contextmanager
 from .run import Run
 from ..utils.printer import print_info, print_warning
+from .runtime import runtime
 
 
 class Experiment(object):
     def __init__(self, experiment_id, path="./experiments/", force=False, experiments=None, hooks=None):
         self.id = str(experiment_id)
         self.experiment_base = path.rstrip("/") + "/" + self.id + "/"
+
+        # Register in the runtime
+        runtime().register_experiment(self)
+
         self.count = 1
         self.done = False
         self.experiments = experiments
         self.hooks = ExperimentHooks(self, hooks=hooks)
         self.run_count = 0
+        self.agent_count = 0
 
         # Check of the experiment dir already exists
         if os.path.exists(self.experiment_base):
@@ -44,3 +50,10 @@ class Experiment(object):
         run = Run()
         self.run_count += 1
         return(run)
+
+    def new_agent_id(self):
+        self.agent_count += 1
+        return(self.agent_count)
+
+    def add_agent_id(self, id):
+        self.agent_count += 1

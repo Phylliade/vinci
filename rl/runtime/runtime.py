@@ -1,3 +1,60 @@
+class Runtime(object):
+    """A object keeping a trace of the whole runtime hierarchy"""
+    def __init__(self):
+        self.agents = {}
+        self.default_agent = None
+        self.experiment = {}
+        self.default_experiment = None
+        self.experiments = {}
+        self.default_experiments = None
+
+    def register_agent(self, agent):
+        self.agents[agent.id] = agent
+        if self.default_agent is None:
+            self.default_agent = agent
+
+    def register_experiment(self, experiment):
+        self.experiment[experiment.id] = experiment
+        if self.default_experiment is None:
+            self.default_experiment = experiment
+
+    def register_experiments(self, experiments):
+        self.experiment[experiments.id] = experiments
+        if self.default_experiments is None:
+            self.default_experiments = experiments
+
+    def get_agent(self, id=None):
+        if id is None:
+            agent = self.default_agent
+        else:
+            agent = self.agents[id]
+
+        return(agent)
+
+    def get_experiment(self, id=None):
+        if id is None:
+            experiment = self.default_experiment
+        else:
+            experiment = self.experiment[id]
+
+        return(experiment)
+
+    def get_experiments(self, id=None):
+        if id is None:
+            experiments = self.default_experiments
+        else:
+            experiments = self.experiments[id]
+
+        return(experiments)
+
+# Global runtime variable
+_runtime = Runtime()
+
+
+def runtime():
+    return(_runtime)
+
+
 def run(self, epochs):
     self.training = True
     self.done = True
@@ -20,10 +77,3 @@ def run(self, epochs):
         yield epoch
 
         # Close the step
-
-
-def experiments(epochs):
-    for epoch in range(epochs):
-        if (epoch + 1) == epochs:
-            experiment.done = True
-        yield epoch
