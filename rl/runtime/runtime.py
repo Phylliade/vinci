@@ -19,7 +19,7 @@ class Runtime(object):
             self.default_experiment = experiment
 
     def register_experiments(self, experiments):
-        self.experiment[experiments.id] = experiments
+        self.experiments[experiments.id] = experiments
         if self.default_experiments is None:
             self.default_experiments = experiments
 

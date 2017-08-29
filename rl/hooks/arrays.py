@@ -3,8 +3,11 @@ import pandas as pd
 
 
 class ArrayHook(Hook):
-    def _register_experiments(self, *args, **kwargs):
-        super(ArrayHook, self)._register_experiments(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super(ArrayHook, self).__init__(*args, **kwargs)
+        self.endpoint = self.experiments.endpoint("data")
+
+    def _experiments_init(self):
         self.endpoint = self.experiments.endpoint("data")
 
         # Rewards
@@ -24,9 +27,7 @@ class ArrayHook(Hook):
         # Lists of experiments
         self.experiment_index = []
 
-    def _register_experiment(self, *args, **kwargs):
-        super(ArrayHook, self)._register_experiment(*args, **kwargs)
-
+    def _experiment_init(self):
         # Rewards
         self.experiment_rewards = []
 
@@ -43,8 +44,7 @@ class ArrayHook(Hook):
         self.run_index = []
 
     # TODO: Put run_rewards in _register_run
-    def _register(self, *args, **kwargs):
-        super(ArrayHook, self)._register(*args, **kwargs)
+    def _agent_init(self):
         self.run_rewards = []
 
     def __call__(self):

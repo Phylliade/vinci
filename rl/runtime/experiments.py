@@ -11,6 +11,8 @@ class Experiments(object):
 
         # Register in the runtime
         runtime().register_experiments(self)
+        from rl.utils.printer import print_debug
+        print_debug(runtime().experiments)
 
         self.done = False
         self.experiment_count = 0

@@ -10,7 +10,10 @@ class Hooks:
 
         if hooks is not None:
             for hook in hooks:
-                self.append(hook)
+                # Only append hooks bound to this agent object
+                if self.agent.id == hook.agent_id:
+                    self.append(hook)
+                    hook._agent_init()
 
     def __call__(self):
         """Call each of the hooks"""
@@ -28,7 +31,10 @@ class Hooks:
             hook._run_call()
 
     def append(self, hook):
-        hook._register(self.agent)
+        # if self.agent.id == hook.agent_id:
+        #     hook.register_(agent)
+
+        # hook._register()
         self.hooks.append(hook)
 
 
@@ -38,10 +44,13 @@ class ExperimentHooks(Hooks):
         self.experiment = experiment
         if hooks is not None:
             for hook in hooks:
-                self.append(hook)
+                # Only append hooks bound to this experiment
+                if self.experiment.id == hook.experiment_id:
+                    self.append(hook)
+                    hook._experiment_init()
 
     def append(self, hook):
-        hook._register_experiment(self.experiment)
+        # hook._register_experiment(self.experiment)
         self.hooks.append(hook)
 
     def experiment_end(self):
@@ -56,10 +65,13 @@ class ExperimentsHooks(Hooks):
         self.experiments = experiments
         if hooks is not None:
             for hook in hooks:
-                self.append(hook)
+                # Only append hooks bound to this experiments object
+                if self.experiments.id == hook.experiments_id:
+                    self.append(hook)
+                    hook._experiments_init()
 
     def append(self, hook):
-        hook._register_experiments(self.experiments)
+        # hook._register_experiments(self.experiments)
         self.hooks.append(hook)
 
     def experiments_end(self):

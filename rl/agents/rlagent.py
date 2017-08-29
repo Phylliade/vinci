@@ -185,7 +185,7 @@ class RLAgent(Agent):
                 return (self.step - start_step >= nb_steps)
         elif termination_criterion == EPISODES_TERMINATION:
             def termination():
-                return (self.episode - start_episode > nb_episodes)
+                return ((self.episode - start_episode >= nb_episodes and self.done))
 
         if self.training:
             self._on_train_begin()
@@ -209,6 +209,7 @@ class RLAgent(Agent):
 
         # Run steps (and episodes) until the termination criterion is met
         while not (self.run_done):
+
             # Init episode
             # If we are at the beginning of a new episode, execute a startup sequence
             if self.done:
@@ -289,11 +290,6 @@ class RLAgent(Agent):
                 # Force a terminal state.
                 self.done = True
 
-            # Stop run if termination criterion met
-            if termination():
-                self.run_done = True
-                self.hooks.run_end()
-
             # Post step: training, callbacks and hooks
             # Train the algorithm
             self.backward()
@@ -323,6 +319,11 @@ class RLAgent(Agent):
                     'nb_steps': np.float_(self.step),
                 }
                 callbacks.on_episode_end(self.episode, logs=episode_logs)
+
+            # Stop run if termination criterion met
+            if termination():
+                self.run_done = True
+                self.hooks.run_end()
 
         callbacks.on_train_end(logs={'did_abort': did_abort})
         self._on_train_end()

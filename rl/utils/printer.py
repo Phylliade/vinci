@@ -16,11 +16,11 @@ def args(f):
 
 
 def print_info(string):
-    print(BG_GREEN + string + END)
+    print(BG_GREEN + str(string) + END)
 
 
 def print_warning(string):
-    print(FG_RED + string + END)
+    print(FG_RED + str(string) + END)
 
 
 def print_debug(string):
@@ -28,7 +28,7 @@ def print_debug(string):
     Used to display debug statements.
     These statements are only temporary, to make code work
     """
-    print(BG_MAGENTA + string + END)
+    print(BG_MAGENTA + str(string) + END)
 
 
 def print_status(string, terminal=False):
@@ -37,4 +37,4 @@ def print_status(string, terminal=False):
         end = "\n"
     else:
         end = ""
-    print("\r" + string, end=end)
+    print("\r" + str(string), end=end)

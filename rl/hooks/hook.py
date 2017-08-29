@@ -29,9 +29,9 @@ class Hook(object):
     def __init__(self, agent_id=None, experiment_id=None, experiments_id=None):
         self.registered = False
         self.runtime = runtime()
-        self.agent = self.runtime.get_agent(agent_id)
-        self.experiment = self.runtime.get_agent(experiment_id)
-        self.experiments = self.runtime.get_agent(experiments_id)
+        self.agent_id = agent_id
+        self.experiment_id = experiment_id
+        self.experiments_id = experiments_id
 
     def __call__(self):
         raise (NotImplementedError)
@@ -51,24 +51,44 @@ class Hook(object):
         self.run = run
         # self.registered = True
 
-    def _register(self, agent):
+    def _register(self):
         """Register the agent"""
         pass
-        # self.agent = agent
-        # self.experiment = agent.experiment
-        # self.registered = True
+        # self.agent = self.runtime.get_agent(self.agent_id)
 
     def _register_experiment(self, experiment):
         """Register the agent"""
         pass
-        # self.experiment = experiment
-        # # self.registered = True
+        # self.experiment = self.runtime.get_experiment(self.experiment_id)
 
     def _register_experiments(self, experiments):
         """Register the agent"""
         pass
-        # self.experiments = experiments
-        # # self.registered = True
+        # self.experiments = self.runtime.get_experiments(self.experiments_id)
+
+    def _agent_init(self):
+        """Callback that is called when the agent is initialized"""
+        pass
+
+    def _experiment_init(self):
+        """Callback that is called when the experiment is initialized"""
+        pass
+
+    def _experiments_init(self):
+        """Callback that is called when the experiments object is initialized"""
+        pass
+
+    @property
+    def experiments(self):
+        return(self.runtime.get_experiments(self.experiments_id))
+
+    @property
+    def experiment(self):
+        return(self.runtime.get_experiment(self.experiment_id))
+
+    @property
+    def agent(self):
+        return(self.runtime.get_agent(self.agent_id))
 
     @property
     def count(self):

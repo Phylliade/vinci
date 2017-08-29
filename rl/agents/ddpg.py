@@ -386,30 +386,34 @@ class DDPGAgent(RLAgent):
         if not self.training:
             return
 
+        warmingup_actor = (self.training_step <= self.nb_steps_warmup_critic)
+        # TODO: Send in an event if warming_up is over
+        if warmingup_actor:
+            pass
+
         # Store most recent experience in memory.
         # Nothing to store in offline mode
         if not offline:
-            if self.step % self.memory_interval == 0:
+            if self.training_step % self.memory_interval == 0:
                 self.memory.append(Experience(self.observation, self.action, self.reward,
                                    self.observation_1, self.done))
 
         # Train the networks
-        if self.step % self.train_interval == 0:
+        if self.training_step % self.train_interval == 0:
 
             # If warm up is over:
             # Update critic
-            fit_critic = (fit_critic and
-                          self.step > self.nb_steps_warmup_critic)
+            fit_critic = (fit_critic and not warmingup_actor)
             # Update actor
-            fit_actor = (fit_actor and self.step > self.nb_steps_warmup_actor)
+            fit_actor = (fit_actor and self.training_step > self.nb_steps_warmup_actor)
 
             # Hard update the target nets if necessary
             if self.target_actor_update >= 1:
-                hard_update_target_actor = self.step % self.target_actor_update == 0
+                hard_update_target_actor = self.training_step % self.target_actor_update == 0
             else:
                 hard_update_target_actor = False
             if self.target_critic_update >= 1:
-                hard_update_target_critic = self.step % self.target_critic_update == 0
+                hard_update_target_critic = self.training_step % self.target_critic_update == 0
             else:
                 hard_update_target_critic = False
 
