@@ -38,3 +38,7 @@ def print_status(string, terminal=False):
     else:
         end = ""
     print("\r" + str(string), end=end)
+
+
+def print_epoch(epoch, nb_epochs):
+    print_status("Iteration {}/{}".format(epoch, nb_epochs), terminal=(epoch == nb_epochs))

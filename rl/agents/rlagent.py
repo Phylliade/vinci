@@ -22,7 +22,7 @@ class RLAgent(Agent):
 
     def __init__(self, hooks=None, **kwargs):
         super(RLAgent, self).__init__(**kwargs)
-        # Use the same session as Keras
+        # Use Keras's sessions
         self.session = K.get_session()
         # self.session = tf.Session()
 
@@ -32,20 +32,6 @@ class RLAgent(Agent):
         self.variables = {}
         # And their corresponding summaries
         self.summary_variables = {}
-
-        # Setup hook variables
-        self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
-        self._hook_variables_optional = ["reward", "episode_reward", "observation"]
-        # Set them to none as default, only if not defined
-        for variable in (self._hook_variables + self._hook_variables_optional):
-            setattr(self, variable, getattr(self, variable, None))
-
-        # Persistent values
-        self.step = 0
-        self.training_step = 0
-        self.episode = 0
-        self.training_episode = 0
-        self.run_number = 0
 
         self.checkpoints = []
 
@@ -308,11 +294,10 @@ class RLAgent(Agent):
             # Stop run if termination criterion met
             if termination():
                 self.run_done = True
-                self.hooks.run_end()
 
         callbacks.on_train_end(logs={'did_abort': did_abort})
         self._on_train_end()
-        self.run_done = True
+        self.hooks.run_end()
 
         return(history)
 

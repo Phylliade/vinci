@@ -24,6 +24,23 @@ class Agent(object):
 
         self.experiment.add_agent(self)
 
+        # Setup hook variables
+        self._hook_variables = ["training", "step", "episode", "episode_step", "done", "step_summaries"]
+        self._hook_variables_optional = ["reward", "episode_reward", "observation"]
+        # Set them to none as default, only if not defined
+        for variable in (self._hook_variables + self._hook_variables_optional):
+            setattr(self, variable, getattr(self, variable, None))
+
+        # Persistent values
+        self.step = 0
+        self.training_step = 0
+        self.episode = 0
+        self.training_episode = 0
+        self.run_number = 0
+        # TODO: Use these variables
+        self.environment_step = 0
+        self.environment_episode = 0
+
         # End of initialization
         # Register in the runtime
         runtime().register_agent(self)
