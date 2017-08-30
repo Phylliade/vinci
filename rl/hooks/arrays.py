@@ -3,11 +3,6 @@ import pandas as pd
 
 
 class ArrayHook(Hook):
-    def __init__(self, *args, **kwargs):
-        # Also works to put in experiments_init
-        super(ArrayHook, self).__init__(*args, **kwargs)
-        self.endpoint = self.experiments.endpoint("data")
-
     def experiments_init(self):
         self.endpoint = self.experiments.endpoint("data")
 

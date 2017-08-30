@@ -54,7 +54,7 @@ class PortraitHook(Hook):
 
 class TrajectoryHook(Hook):
     """Records the trajectory of the agent"""
-    def _agent_init(self, *args, **kwargs):
+    def agent_init(self, *args, **kwargs):
         super(TrajectoryHook, self)._agent_init(*args, **kwargs)
         self.trajectory = {"x": [], "y": []}
         self.endpoint = self.experiment.endpoint("figures/trajectory")
@@ -77,8 +77,8 @@ class TrajectoryHook(Hook):
 
 
 class MemoryDistributionHook(Hook):
-    def _register(self, *args, **kwargs):
-        super(MemoryDistributionHook, self)._agent_init(*args, **kwargs)
+    def agent_init(self, *args, **kwargs):
+        super(MemoryDistributionHook, self).agent_init(*args, **kwargs)
         self.endpoint = self.experiment.endpoint("figures/memory/action")
 
     def __call__(self):
