@@ -19,12 +19,16 @@ class Hooks:
         for hook in self.hooks:
             hook()
 
-    def __iter__(self):
-        return(iter(self.hooks))
+    def episode_end(self):
+        for hook in self.hooks:
+            hook.episode_end()
 
     def run_end(self):
         for hook in self.hooks:
             hook.run_end()
+
+    def __iter__(self):
+        return(iter(self.hooks))
 
     def append(self, hook):
         if self.agent == hook.agent:

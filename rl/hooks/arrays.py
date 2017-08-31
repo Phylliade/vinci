@@ -3,7 +3,9 @@ import pandas as pd
 
 
 class ArrayHook(Hook):
+    """This hook collects data on a run-basis"""
     def experiments_init(self):
+        # An experiments-wide endpoint
         self.endpoint = self.experiments.endpoint("data")
 
         # Rewards
@@ -23,6 +25,10 @@ class ArrayHook(Hook):
         # Lists of experiments
         self.experiment_index = []
 
+    def experiments_end(self):
+        pass
+        # self.save()
+
     def experiment_init(self):
         # Rewards
         self.experiment_rewards = []
@@ -38,28 +44,6 @@ class ArrayHook(Hook):
 
         # Run index
         self.run_index = []
-
-    # TODO: Put run_rewards in _register_run
-    def agent_init(self):
-        self.run_rewards = []
-
-    def __call__(self):
-        if self.agent.done:
-            self.run_rewards.append(self.agent.episode_reward)
-
-    def run_end(self):
-        # Rewards
-        self.experiment_rewards.append(self.run_rewards)
-        self.run_rewards = []
-        # Episode
-        self.experiment_episode.append(self.agent.episode)
-        # IsTraining
-        self.experiment_istraining.append(self.agent.training)
-        # Step
-        self.experiment_step.append(self.agent.training_step)
-
-        # Run index
-        self.run_index.append(self.agent.run_number)
 
     def experiment_end(self):
         # Rewards
@@ -85,9 +69,27 @@ class ArrayHook(Hook):
         if (self.experiments.experiment_count % 1 == 0):
             self.save()
 
-    def experiments_end(self):
-        pass
-        # self.save()
+    # TODO: Put run_rewards in _register_run
+    def agent_init(self):
+        self.run_rewards = []
+
+    def __call__(self):
+        if self.agent.done:
+            self.run_rewards.append(self.agent.episode_reward)
+
+    def run_end(self):
+        # Rewards
+        self.experiment_rewards.append(self.run_rewards)
+        self.run_rewards = []
+        # Episode
+        self.experiment_episode.append(self.agent.episode)
+        # IsTraining
+        self.experiment_istraining.append(self.agent.training)
+        # Step
+        self.experiment_step.append(self.agent.training_step)
+
+        # Run index
+        self.run_index.append(self.agent.run_number)
 
     def save(self):
         print("Saving data")

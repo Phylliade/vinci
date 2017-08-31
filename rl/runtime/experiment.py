@@ -9,10 +9,8 @@ from .runtime import runtime
 
 class PersistentExperiment(object):
     """An abstract experiment only assuming filesystem related functions"""
-    def __init__(self,
-                 experiment_id,
-                 path="./experiments/",
-                 force=False):
+
+    def __init__(self, experiment_id, path="./experiments/", force=False):
         self.id = str(experiment_id)
         self.experiment_base = path.rstrip("/") + "/" + self.id + "/"
 
@@ -37,10 +35,7 @@ class PersistentExperiment(object):
 
 
 class Experiment(PersistentExperiment):
-    def __init__(self,
-                 experiments=None,
-                 hooks=None,
-                 **kwargs):
+    def __init__(self, experiments=None, hooks=None, **kwargs):
         super(Experiment, self).__init__(**kwargs)
 
         self.count = 1
@@ -81,15 +76,27 @@ class Experiment(PersistentExperiment):
         return (run)
 
     def get_new_agent_id(self):
-        return(self.next_agent_id)
+        return (self.next_agent_id)
 
     def add_agent(self, agent):
         """Add the agent to the experiment registers, and return its id"""
         if agent.name in self.agents:
-            raise(NameError("An agent with the name {} already exists".format(agent.name)))
+            raise (NameError(
+                "An agent with the name {} already exists".format(agent.name)))
         else:
             self.agents.append(agent.name)
             self.next_agent_id += 1
+
+
+class DefaultExperiment(Experiment):
+    """
+    An experiment used by default by the agents.
+    If will use the id "default" and always overwrite an existing experiment
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(DefaultExperiment, self).__init__(
+            *args, experiment_id="default", force=True, **kwargs)
 
 
 class RootExperiment(PersistentExperiment):
@@ -97,6 +104,4 @@ class RootExperiment(PersistentExperiment):
 
     def __init__(self, experiments, **kwargs):
         super(RootExperiment, self).__init__(
-            experiment_id=experiments.name,
-            path=experiments._path,
-            **kwargs)
+            experiment_id=experiments.name, path=experiments._path, **kwargs)

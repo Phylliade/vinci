@@ -1,4 +1,4 @@
-from .experiment import Experiment
+from .experiment import DefaultExperiment
 from .runtime import runtime
 from rl.hooks import Hooks
 
@@ -7,8 +7,8 @@ class Agent(object):
     """Abstract class for an agent"""
     def __init__(self, experiment=None, hooks=None, name=None):
         if experiment is None:
-            # Since we are using "default", we can overwrite it.
-            self.experiment = Experiment(experiment_id="default", force=True)
+            # Create the experiment ourselves but we are losing the possibility to use it as a context manager
+            self.experiment = DefaultExperiment()
         else:
             self.experiment = experiment
 

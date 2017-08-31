@@ -22,6 +22,10 @@ class Hook(object):
     * agent.observation: The observation at the beginning of the step
     * agent.observation_1: The observation at the end of the step
     * agent.action: The action taken during the step
+    * agent.policy
+    * agent.goal
+    * agent.achievement
+    * agent.error
 
     :param agent: the RL agent
     :param episodic: Whether the hook will use episode information
@@ -37,7 +41,15 @@ class Hook(object):
     def __call__(self):
         raise (NotImplementedError)
 
+    # TODO: Add episode_end call
+
     # Optional calls
+    def episode_init(self):
+        pass
+
+    def episode_end(self):
+        pass
+
     def run_init(self):
         pass
 
