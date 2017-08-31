@@ -178,6 +178,9 @@ class RLAgent(Agent):
         self.action = None
         self.step_summaries = None
 
+        # Run_init hooks
+        self.hooks.run_init()
+
         # Run steps (and episodes) until the termination criterion is met
         while not (self.run_done):
 
@@ -342,6 +345,9 @@ class RLAgent(Agent):
             from rl.hooks.plot import PortraitHook, TrajectoryHook
             self.hooks.append(PortraitHook(agent_id=self.id))
             self.hooks.append(TrajectoryHook(agent_id=self.id))
+
+        # Run_init hooks
+        self.hooks.run_init()
 
         # We could use a termination criterion, based on step instead of epoch, as in  _run
         for epoch in range(1, epochs + 1):

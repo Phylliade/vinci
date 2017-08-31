@@ -19,9 +19,17 @@ class Hooks:
         for hook in self.hooks:
             hook()
 
+    def episode_init(self):
+        for hook in self.hooks:
+            hook.episode_init()
+
     def episode_end(self):
         for hook in self.hooks:
             hook.episode_end()
+
+    def run_init(self):
+        for hook in self.hooks:
+            hook.run_init()
 
     def run_end(self):
         for hook in self.hooks:

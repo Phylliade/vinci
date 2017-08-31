@@ -69,13 +69,17 @@ class ArrayHook(Hook):
         if (self.experiments.experiment_count % 1 == 0):
             self.save()
 
-    # TODO: Put run_rewards in _register_run
+    # TODO: Remove this
     def agent_init(self):
         self.run_rewards = []
 
+    # TODO: Move this to episode_end method
     def __call__(self):
         if self.agent.done:
             self.run_rewards.append(self.agent.episode_reward)
+
+    def run_init(self):
+        self.run_rewards = []
 
     def run_end(self):
         # Rewards

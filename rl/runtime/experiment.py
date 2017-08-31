@@ -27,10 +27,12 @@ class PersistentExperiment(object):
         self.endpoints = []
 
     def endpoint(self, path):
-        self.endpoints.append(path)
         full_path = self.experiment_base + path.rstrip("/") + "/"
-        # At this point, the experiment path should already be cleared, so there is no need to check for existence of the file
-        os.makedirs(full_path, exist_ok=True)
+        # An endpoint could already exist, because used elsewhere in the experiment
+        # Since we are sure the experiment was already cleared
+        if (path not in self.endpoints):
+            self.endpoints.append(path)
+            os.makedirs(full_path, exist_ok=True)
         return (full_path)
 
 
