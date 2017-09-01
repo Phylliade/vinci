@@ -37,7 +37,10 @@ class Memory(object):
 
 
 class SimpleMemory(Memory):
-    """A simple memory directly storing experiences in a circular buffer"""
+    """
+    A simple memory directly storing experiences in a circular buffer
+
+    Data is stored directly as an array of :class:`Experience`"""
 
     def __init__(self, env, limit):
         super(SimpleMemory, self).__init__(env)
