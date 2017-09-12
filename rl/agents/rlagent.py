@@ -11,7 +11,6 @@ from rl.utils.printer import print_status
 from rl.runtime.agent import Agent
 # Other hooks are imported on the fly when required
 
-
 # Global variables
 STEPS_TERMINATION = 1
 EPISODES_TERMINATION = 2
@@ -89,16 +88,16 @@ class RLAgent(Agent):
         # Process the different cases when either nb_steps or nb_episodes are specified
         if (nb_steps is None and nb_episodes is None):
             raise (ValueError(
-                "Please specify one (and only one) of nb_steps or nb_episodes"
-            ))
+                "Please specify one (and only one) of nb_steps or nb_episodes")
+                   )
         elif (nb_steps is not None and nb_episodes is None):
             termination_criterion = STEPS_TERMINATION
         elif (nb_steps is None and nb_episodes is not None):
             termination_criterion = EPISODES_TERMINATION
         elif (nb_steps is not None and nb_episodes is not None):
             raise (ValueError(
-                "Please specify one (and only one) of nb_steps or nb_episodes"
-            ))
+                "Please specify one (and only one) of nb_steps or nb_episodes")
+                   )
 
         self.training = train
 
@@ -152,11 +151,14 @@ class RLAgent(Agent):
         start_step = self.step
         start_episode = self.episode
         if termination_criterion == STEPS_TERMINATION:
+
             def termination():
                 return (self.step - start_step >= nb_steps)
         elif termination_criterion == EPISODES_TERMINATION:
+
             def termination():
-                return ((self.episode - start_episode >= nb_episodes and self.done))
+                return ((self.episode - start_episode >= nb_episodes and
+                         self.done))
 
         if self.training:
             self._on_train_begin()
@@ -302,7 +304,7 @@ class RLAgent(Agent):
         self._on_train_end()
         self.hooks.run_end()
 
-        return(history)
+        return (history)
 
     def _perform_random_steps(self, nb_max_start_steps, start_step_policy, env,
                               observation, callbacks):
@@ -325,12 +327,12 @@ class RLAgent(Agent):
                 break
         return (observation)
 
-    def fit_offline(self,
-                    epochs=1,
-                    episode_length=20,
-                    plots=False,
-                    tensorboard=False,
-                    **kwargs):
+    def train_offline(self,
+                      steps=1,
+                      episode_length=20,
+                      plots=False,
+                      tensorboard=False,
+                      **kwargs):
         """Train the networks in offline mode"""
 
         self.training = True
@@ -350,7 +352,7 @@ class RLAgent(Agent):
         self.hooks.run_init()
 
         # We could use a termination criterion, based on step instead of epoch, as in  _run
-        for epoch in range(1, epochs + 1):
+        for epoch in range(1, steps + 1):
             if self.done:
                 self.episode += 1
                 if self.training:
@@ -372,7 +374,9 @@ class RLAgent(Agent):
 
             # Post step
             # Train the networks
-            print_status("Training epoch: {}/{} ".format(epoch, epochs), terminal=(epoch == epochs))
+            print_status(
+                "Training epoch: {}/{} ".format(epoch, steps),
+                terminal=(epoch == steps))
             self.backward(offline=True)
 
             # Hooks
@@ -408,7 +412,7 @@ class RLAgent(Agent):
 
         This is an internal method used to directly train the controllers. The learning strategy is defined by :func:`backward`.
         """
-        raise(NotImplementedError())
+        raise (NotImplementedError())
 
     def load_weights(self, filepath):
         """

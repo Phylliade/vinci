@@ -29,10 +29,11 @@ class PersistentExperiment(object):
     def endpoint(self, path):
         full_path = self.experiment_base + path.rstrip("/") + "/"
         # An endpoint could already exist, because used elsewhere in the experiment
-        # Since we are sure the experiment was already cleared
         if (path not in self.endpoints):
             self.endpoints.append(path)
-            os.makedirs(full_path, exist_ok=True)
+            if not os.path.exists(full_path):
+                # Remove use of exist_ok for py2
+                os.makedirs(full_path)
         return (full_path)
 
 
