@@ -332,6 +332,7 @@ class RLAgent(Agent):
                       episode_length=20,
                       plots=False,
                       tensorboard=False,
+                      verbose=True,
                       **kwargs):
         """Train the networks in offline mode"""
 
@@ -374,9 +375,10 @@ class RLAgent(Agent):
 
             # Post step
             # Train the networks
-            print_status(
-                "Training epoch: {}/{} ".format(epoch, steps),
-                terminal=(epoch == steps))
+            if verbose:
+                print_status(
+                    "Training epoch: {}/{} ".format(epoch, steps),
+                    terminal=(epoch == steps))
             self.backward(offline=True)
 
             # Hooks
