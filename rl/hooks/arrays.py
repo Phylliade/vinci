@@ -74,7 +74,7 @@ class ArrayHook(Hook):
         self.run_rewards = []
 
     # TODO: Move this to episode_end method
-    def __call__(self):
+    def step_end(self):
         if self.agent.done:
             self.run_rewards.append(self.agent.episode_reward)
 
@@ -117,15 +117,3 @@ class ArrayHook(Hook):
         step.columns.name = "runs"
         step.index.name = "experiment"
         step.to_pickle(self.endpoint + "step.p")
-
-
-class TestArrayHook(ArrayHook):
-    def __call__(self):
-        # Only activate during testing
-        if not self.agent.training:
-            super(TestArrayHook, self).__call__()
-
-    def run_end(self):
-        # Only activate during testing
-        if not self.agent.training:
-            super(TestArrayHook, self)._run_end()

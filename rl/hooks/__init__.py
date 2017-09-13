@@ -1,3 +1,3 @@
-from .hooks import Hooks, ExperimentHooks, ExperimentsHooks
+from .hooks import AgentHooks, ExperimentHooks, ExperimentsHooks
 
-__all__ = ['Hooks', 'ExperimentHooks', 'ExperimentsHooks']
+__all__ = ['AgentHooks', 'ExperimentHooks', 'ExperimentsHooks']

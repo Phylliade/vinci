@@ -38,10 +38,11 @@ class Hook(object):
         self.runtime = runtime()
         self.agent_id = agent_id
 
-    def __call__(self):
-        raise (NotImplementedError)
+    def step_init(self):
+        pass
 
-    # TODO: Add episode_end call
+    def step_end(self):
+        pass
 
     # Optional calls
     def episode_init(self):

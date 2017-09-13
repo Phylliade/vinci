@@ -15,7 +15,7 @@ class PortraitHook(Hook):
         self.endpoint_actor_distribution = self.experiment.endpoint("figures/distribution/actor")
         self.endpoint_critic_distribution = self.experiment.endpoint("figures/distribution/critic")
 
-    def __call__(self):
+    def step_end(self):
         # TODO: Move this hook to a non-blocking thread
         if self.agent.done:
 
@@ -59,7 +59,7 @@ class TrajectoryHook(Hook):
         self.trajectory = {"x": [], "y": []}
         self.endpoint = self.experiment.endpoint("figures/trajectory")
 
-    def __call__(self):
+    def step_end(self):
         # Only plot portraits for envs whose observation_space is 2-dimensional
         if self.agent.env.observation_space.dim == 2:
             self.trajectory["x"].append(self.agent.observation[0])
@@ -81,7 +81,7 @@ class MemoryDistributionHook(Hook):
         super(MemoryDistributionHook, self).agent_init(*args, **kwargs)
         self.endpoint = self.experiment.endpoint("figures/memory/action")
 
-    def __call__(self):
+    def step_end(self):
         if self.agent.done:
             replay_buffer = self.agent.memory.dump()
             # Collect every states and actions

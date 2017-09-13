@@ -1,6 +1,6 @@
 from .experiment import DefaultExperiment
 from .runtime import runtime
-from rl.hooks import Hooks
+from rl.hooks import AgentHooks
 
 
 class Agent(object):
@@ -57,7 +57,7 @@ class Agent(object):
         if hooks is not None:
             hooks_list += hooks
 
-        self.hooks = Hooks(self, hooks_list)
+        self.hooks = AgentHooks(self, hooks_list)
 
     def _run(self, train=True):
         raise(NotImplementedError())

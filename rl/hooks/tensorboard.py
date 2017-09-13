@@ -8,7 +8,7 @@ class TensorboardHook(Hook):
         self.endpoint = self.experiment.endpoint("tensorboard")
         self.summary_writer = tf.summary.FileWriter(self.endpoint)
 
-    def __call__(self):
+    def step_end(self):
         # Step summaries
         for summary in list(self.agent.step_summaries):
             # FIXME: Use only one summary

@@ -1,7 +1,13 @@
 from .hook import ValidationHook
 
 
-class Hooks:
+class Hooks(object):
+    """Abstract hooks class"""
+    def __iter__(self):
+        return(iter(self.hooks))
+
+
+class AgentHooks(Hooks):
     """Container class to instiantiate, register, initialize and call multiple hooks"""
     def __init__(self, agent, hooks=None):
         self.agent = agent
@@ -14,10 +20,17 @@ class Hooks:
                 if self.agent == hook.agent:
                     self.append(hook)
 
-    def __call__(self):
-        """Call each of the hooks"""
+    def step_init(self):
         for hook in self.hooks:
-            hook()
+            hook.step_init()
+
+    def step_end(self):
+        for hook in self.hooks:
+            hook.step_end()
+
+    def __call__(self):
+        """Convenience method around step_end"""
+        self.step_end()
 
     def episode_init(self):
         for hook in self.hooks:
@@ -35,9 +48,6 @@ class Hooks:
         for hook in self.hooks:
             hook.run_end()
 
-    def __iter__(self):
-        return(iter(self.hooks))
-
     def append(self, hook):
         if self.agent == hook.agent:
             hook.agent_init()
@@ -46,7 +56,7 @@ class Hooks:
             raise(Exception("Can't append: Hook's agent ID is {}, whereas current agent ID is {}".format(hook.experiment_id, self.experiment.id)))
 
     def __repr__(self):
-        return("Hooks object, holding:\n" + repr(self.hooks))
+        return("AgentHooks object, holding:\n" + repr(self.hooks))
 
 
 class ExperimentHooks(Hooks):
