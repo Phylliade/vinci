@@ -117,3 +117,74 @@ class ArrayHook(Hook):
         step.columns.name = "runs"
         step.index.name = "experiment"
         step.to_pickle(self.endpoint + "step.p")
+
+
+class ExperimentArrayHook(Hook):
+    """This hook collects data on a run-basis"""
+    def experiment_init(self):
+        self.endpoint = self.experiment.endpoint("data")
+
+        # Rewards
+        self.experiment_rewards = []
+
+        # Episode
+        self.experiment_episode = []
+
+        # Step
+        self.experiment_step = []
+
+        # Training
+        self.experiment_istraining = []
+
+        # Run index
+        self.run_index = []
+
+    def experiment_end(self):
+        self.save()
+
+        # Reset the memories
+        # Rewards
+        self.experiment_rewards = []
+
+        # IsTraining
+        self.experiment_istraining = []
+
+        # Episode count
+        self.experiment_episode = []
+
+        # Step count
+        self.experiment_step = []
+
+        # Experiment index
+        self.experiment_index.append(self.experiments.experiment_count)
+
+    # TODO: Remove this
+    def agent_init(self):
+        self.run_rewards = []
+
+    # TODO: Move this to episode_end method
+    def step_end(self):
+        if self.agent.done:
+            self.run_rewards.append(self.agent.episode_reward)
+
+    def run_init(self):
+        self.run_rewards = []
+
+    def run_end(self):
+        # Rewards
+        self.experiment_rewards.append(self.run_rewards)
+        self.run_rewards = []
+        # Episode
+        self.experiment_episode.append(self.agent.episode)
+        # IsTraining
+        self.experiment_istraining.append(self.agent.training)
+        # Step
+        self.experiment_step.append(self.agent.training_step)
+
+        # Run index
+        self.run_index.append(self.agent.run_number)
+
+    def save(self):
+        print("Saving data")
+        data = pd.DataFrame([self.experiment_rewards, self.experiment_episode, self.experiment_istraining, self.experiment_step], index=self.run_index)
+        data.to_pickle(self.endpoint + "data.p")

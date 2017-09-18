@@ -1,13 +1,13 @@
 from .hook import ValidationHook
 
 
-class Hooks(object):
+class HooksContainer(object):
     """Abstract hooks class"""
     def __iter__(self):
         return(iter(self.hooks))
 
 
-class AgentHooks(Hooks):
+class AgentHooksContainer(HooksContainer):
     """Container class to instiantiate, register, initialize and call multiple hooks"""
     def __init__(self, agent, hooks=None):
         self.agent = agent
@@ -50,6 +50,8 @@ class AgentHooks(Hooks):
 
     def append(self, hook):
         if self.agent == hook.agent:
+            # Register the agent and initiliaze the hook
+            hook.register_agent(self.agent)
             hook.agent_init()
             self.hooks.append(hook)
         else:
@@ -59,7 +61,7 @@ class AgentHooks(Hooks):
         return("AgentHooks object, holding:\n" + repr(self.hooks))
 
 
-class ExperimentHooks(Hooks):
+class ExperimentHooksContainer(HooksContainer):
     def __init__(self, experiment, hooks=None):
         self.hooks = []
         self.experiment = experiment
@@ -70,6 +72,7 @@ class ExperimentHooks(Hooks):
     def append(self, hook):
         # Only append hooks bound to this experiment
         if self.experiment == hook.experiment:
+            hook.register_experiments(self.experiment)
             hook.experiment_init()
             self.hooks.append(hook)
         else:
@@ -84,7 +87,7 @@ class ExperimentHooks(Hooks):
         return("ExperimentHooks object, holding:\n" + repr(self.hooks))
 
 
-class ExperimentsHooks(Hooks):
+class ExperimentsHooksContainer(HooksContainer):
     def __init__(self, experiments, hooks=None):
         self.hooks = []
         # TODO: Register the experiments
@@ -97,6 +100,7 @@ class ExperimentsHooks(Hooks):
     def append(self, hook):
         """A method that takes care of registering the experiments on the hook and initialize it, by calling"""
         if self.experiments == hook.experiments:
+            hook.register_experiments(self.experiments)
             hook.experiments_init()
             self.hooks.append(hook)
         else:

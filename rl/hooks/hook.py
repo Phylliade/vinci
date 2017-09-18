@@ -30,13 +30,14 @@ class Hook(object):
     :param agent: the RL agent
     :param episodic: Whether the hook will use episode information
     """
-    def __init__(self, agent_id=None):
+    def __init__(self, agent_id=None, experiment_id=None):
         """
         Specify the agent object the hook must monitor
         If left to None, the hook will use the default agent
         """
         self.runtime = runtime()
         self.agent_id = agent_id
+        self.experiment_id = experiment_id
 
     def step_init(self):
         pass
@@ -75,17 +76,26 @@ class Hook(object):
     def experiments_end(self):
             pass
 
-    @property
-    def experiments(self):
-        return(self.runtime.get_experiments())
+    def register_agent(self, agent):
+        self.agent = agent
 
-    @property
-    def experiment(self):
-        return(self.runtime.get_experiment())
+    def register_experiment(self, experiment):
+        self.experiment = experiment
 
-    @property
-    def agent(self):
-        return(self.runtime.get_agent(self.agent_id))
+    def register_experiments(self, experiments):
+        self.experiments = experiments
+
+    # @property
+    # def experiments(self):
+    #     return(self.runtime.get_experiments())
+    #
+    # @property
+    # def experiment(self):
+    #     return(self.runtime.get_experiment(self.experiment_id))
+    #
+    # @property
+    # def agent(self):
+    #     return(self.runtime.get_agent(self.agent_id))
 
     @property
     def count(self):

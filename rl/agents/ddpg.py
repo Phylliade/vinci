@@ -354,7 +354,7 @@ class DDPGAgent(RLAgent):
         assert action.shape == (self.nb_actions, )
 
         # Apply noise, if a random process is set.
-        if self.training and self.random_process is not None:
+        if self.exploration and self.random_process is not None:
             noise = self.random_process.sample()
             assert noise.shape == action.shape
             action += noise

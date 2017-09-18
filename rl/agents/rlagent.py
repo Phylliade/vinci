@@ -22,8 +22,9 @@ class RLAgent(Agent):
     def __init__(self, hooks=None, **kwargs):
         super(RLAgent, self).__init__(**kwargs)
         # Use Keras's sessions
-        self.session = K.get_session()
-        # self.session = tf.Session()
+        # self.session = K.get_session()
+        self.session = tf.Session()
+        K.set_session(self.session)
 
         # Collected metrics
         self.metrics = {}
@@ -43,6 +44,7 @@ class RLAgent(Agent):
              nb_steps=None,
              nb_episodes=None,
              train=True,
+             exploration=True,
              action_repetition=1,
              callbacks=None,
              verbose=1,
@@ -100,6 +102,8 @@ class RLAgent(Agent):
                    )
 
         self.training = train
+        # We explore only if the flag is selected and we are in train mode
+        self.exploration = (train and exploration)
 
         # Initialize callbacks
         if callbacks is None:

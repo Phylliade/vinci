@@ -12,6 +12,7 @@ class Runtime(object):
         self.current_experiments = None
 
     def register_agent(self, agent):
+        # Overwrite agent if it's already existing
         if agent.id in self.agents:
             del self.agents[agent.id]
         self.agents[agent.id] = agent

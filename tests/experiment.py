@@ -1,4 +1,4 @@
-from rl.runtime.experiments import Experiments
+from rl.experiments import MultipleExperiments
 from rl.agents.ddpg import DDPGAgent
 from rl.memory import SimpleMemory
 from rl.random import OrnsteinUhlenbeckProcess
@@ -6,7 +6,7 @@ from rl.utils.networks import simple_actor, simple_critic
 import gym
 from rl.utils.env import populate_env
 
-my_expe = Experiments("test", force=True, path="/tmp/experiments", analytics=False)
+my_expe = MultipleExperiments("test", force=True, path="/tmp/experiments", analytics=False)
 
 with my_expe:
     for experiment in my_expe.experiments(5):

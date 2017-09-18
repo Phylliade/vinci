@@ -1,6 +1,6 @@
 import os
 import shutil
-from rl.hooks import ExperimentHooks
+from rl.hooks import ExperimentHooksContainer
 # from contextlib import contextmanager
 from .run import Run
 from ..utils.printer import print_info, print_warning
@@ -47,7 +47,7 @@ class Experiment(PersistentExperiment):
         self.run_count = 0
         self.next_agent_id = 0
         # We only need to store the agent names, not the agent themselves for the moment
-        self.agents = []
+        self.agents = {}
 
         # End of init
         # Register in the runtime
@@ -64,7 +64,7 @@ class Experiment(PersistentExperiment):
         if hooks is not None:
             hooks_list += hooks
 
-        self.hooks = ExperimentHooks(self, hooks=hooks_list)
+        self.hooks = ExperimentHooksContainer(self, hooks=hooks_list)
 
     def __enter__(self):
         print_info("Beginning experiment {}".format(self.id))
@@ -87,7 +87,7 @@ class Experiment(PersistentExperiment):
             raise (NameError(
                 "An agent with the name {} already exists".format(agent.name)))
         else:
-            self.agents.append(agent.name)
+            self.agents[agent.name] = agent
             self.next_agent_id += 1
 
 

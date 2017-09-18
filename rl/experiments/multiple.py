@@ -1,11 +1,12 @@
-from .experiment import Experiment, RootExperiment
-from ..hooks import ExperimentsHooks
+from rl.runtime.experiment import Experiment, RootExperiment
+from ..hooks import ExperimentsHooksContainer
 from ..utils.printer import print_info
-from .runtime import runtime
+from rl.runtime.runtime import runtime
 
 
-class Experiments(object):
-    def __init__(self, name, analytics=False, hooks=None, force=False, path="./experiments"):
+class MultipleExperiments(object):
+    """Abstract class to manage multiple experiments"""
+    def __init__(self, name, hooks=None, force=False, path="./experiments"):
         self.name = str(name)
         self.id = name
 
@@ -22,10 +23,7 @@ class Experiments(object):
         # Add the hooks
         if hooks is None:
             hooks = []
-        if analytics:
-            from rl.hooks.arrays import ArrayHook
-            hooks.append(ArrayHook())
-        self.hooks = ExperimentsHooks(self, hooks=hooks)
+        self.hooks = ExperimentsHooksContainer(self, hooks=hooks)
 
     def endpoint(self, path):
         return(self._root_experiment.endpoint(path))

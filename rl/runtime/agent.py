@@ -1,6 +1,6 @@
 from .experiment import DefaultExperiment
 from .runtime import runtime
-from rl.hooks import AgentHooks
+from rl.hooks.container import AgentHooksContainer
 
 
 class Agent(object):
@@ -57,7 +57,7 @@ class Agent(object):
         if hooks is not None:
             hooks_list += hooks
 
-        self.hooks = AgentHooks(self, hooks_list)
+        self.hooks = AgentHooksContainer(self, hooks_list)
 
     def _run(self, train=True):
         raise(NotImplementedError())
@@ -75,3 +75,7 @@ class Agent(object):
         See :func:`_run` for the argument list.
         """
         return(self._run(train=False, **kwargs))
+
+    @property
+    def session(self):
+        return(self.experiment.session)
