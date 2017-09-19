@@ -16,9 +16,7 @@ class AgentHooksContainer(HooksContainer):
 
         if hooks is not None:
             for hook in hooks:
-                # Only append hooks bound to this agent object
-                if self.agent == hook.agent:
-                    self.append(hook)
+                self.append(hook)
 
     def step_init(self):
         for hook in self.hooks:
@@ -49,13 +47,12 @@ class AgentHooksContainer(HooksContainer):
             hook.run_end()
 
     def append(self, hook):
-        if self.agent == hook.agent:
+        # Only append hooks bound to this agent object
+        if hook.agent_id == self.agent.id or hook.agent_id is "all" or (hook.agent_id == "default" and self.agent.attributes["default"]):
             # Register the agent and initiliaze the hook
             hook.register_agent(self.agent)
             hook.agent_init()
             self.hooks.append(hook)
-        else:
-            raise(Exception("Can't append: Hook's agent ID is {}, whereas current agent ID is {}".format(hook.experiment_id, self.experiment.id)))
 
     def __repr__(self):
         return("AgentHooks object, holding:\n" + repr(self.hooks))
@@ -71,8 +68,8 @@ class ExperimentHooksContainer(HooksContainer):
 
     def append(self, hook):
         # Only append hooks bound to this experiment
-        if self.experiment == hook.experiment:
-            hook.register_experiments(self.experiment)
+        if hook.experiment_id == self.experiment.id or hook.experiment_id is "all" or (hook.experiment_id == "default" and self.experiment.attributes["default"]):
+            hook.register_experiment(self.experiment)
             hook.experiment_init()
             self.hooks.append(hook)
         else:
@@ -99,12 +96,9 @@ class ExperimentsHooksContainer(HooksContainer):
 
     def append(self, hook):
         """A method that takes care of registering the experiments on the hook and initialize it, by calling"""
-        if self.experiments == hook.experiments:
-            hook.register_experiments(self.experiments)
-            hook.experiments_init()
-            self.hooks.append(hook)
-        else:
-            raise(Exception("Can't append: Hook's experiments ID is {}, whereas current experiments ID is {}".format(hook.experiments_id, self.experiments.id)))
+        hook.register_experiments(self.experiments)
+        hook.experiments_init()
+        self.hooks.append(hook)
 
     def experiments_end(self):
         for hook in self.hooks:

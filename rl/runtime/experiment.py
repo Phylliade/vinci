@@ -10,7 +10,7 @@ from .runtime import runtime
 class PersistentExperiment(object):
     """An abstract experiment only assuming filesystem related functions"""
 
-    def __init__(self, experiment_id, path="./experiments/", force=False):
+    def __init__(self, experiment_id, path="./experiments/", force=False, use_tf=True):
         self.id = str(experiment_id)
         self.experiment_base = path.rstrip("/") + "/" + self.id + "/"
 
@@ -25,6 +25,21 @@ class PersistentExperiment(object):
                 shutil.rmtree(self.experiment_base)
         os.makedirs(self.experiment_base)
         self.endpoints = []
+
+        # Dict to store useful agent attributes
+        self.attributes = {"default": True}
+
+        # No default experiment by default
+        # It will be configured later
+        self.has_default_experiment = False
+
+        if use_tf:
+            import tensorflow as tf
+            from keras import backend as K
+            # Use Keras's sessions
+            # self.session = K.get_session()
+            self.session = tf.Session()
+            K.set_session(self.session)
 
     def endpoint(self, path):
         full_path = self.experiment_base + path.rstrip("/") + "/"
@@ -89,6 +104,13 @@ class Experiment(PersistentExperiment):
         else:
             self.agents[agent.name] = agent
             self.next_agent_id += 1
+
+            # Manage the default agent
+            if not self.has_default_experiment:
+                agent.attributes["default"] = True
+                self.has_default_experiment = True
+            else:
+                agent.attributes["default"] = False
 
 
 class DefaultExperiment(Experiment):

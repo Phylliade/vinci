@@ -13,7 +13,7 @@ class ParallelExperiments(MultipleExperiments):
 
         for experiment_count in range(1, number + 1):
             print_info("Spinning experiment {}/{}".format(experiment_count, number))
-            experiment_id = str(self.experiment_count)
+            experiment_id = str(experiment_count)
             experiment_id_full = (self.name + "/" + experiment_id)
 
             experiment = Experiment(experiment_id=experiment_id_full, experiments=self, path=self._path, hooks=[ExperimentArrayHook()])

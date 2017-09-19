@@ -4,7 +4,6 @@ from copy import deepcopy
 
 import numpy as np
 from keras.callbacks import History
-import keras.backend as K
 
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 from rl.utils.printer import print_status
@@ -19,12 +18,8 @@ EPISODES_TERMINATION = 2
 class RLAgent(Agent):
     """Generic agent class"""
 
-    def __init__(self, hooks=None, **kwargs):
+    def __init__(self, **kwargs):
         super(RLAgent, self).__init__(**kwargs)
-        # Use Keras's sessions
-        # self.session = K.get_session()
-        self.session = tf.Session()
-        K.set_session(self.session)
 
         # Collected metrics
         self.metrics = {}

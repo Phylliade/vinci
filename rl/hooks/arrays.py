@@ -156,7 +156,7 @@ class ExperimentArrayHook(Hook):
         self.experiment_step = []
 
         # Experiment index
-        self.experiment_index.append(self.experiments.experiment_count)
+        self.experiment_index = self.experiment.id
 
     # TODO: Remove this
     def agent_init(self):

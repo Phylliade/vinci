@@ -30,7 +30,7 @@ class Hook(object):
     :param agent: the RL agent
     :param episodic: Whether the hook will use episode information
     """
-    def __init__(self, agent_id=None, experiment_id=None):
+    def __init__(self, agent_id="default", experiment_id="default"):
         """
         Specify the agent object the hook must monitor
         If left to None, the hook will use the default agent
