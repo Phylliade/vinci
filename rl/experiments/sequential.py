@@ -2,7 +2,7 @@ from .multiple import MultipleExperiments
 
 
 class SequentialExperiments(MultipleExperiments):
-    def __init__(self, *args, analytics=False, hooks=None, **kwargs):
+    def __init__(self, name, analytics=False, hooks=None, **kwargs):
         # Add the hooks
         if hooks is None:
             hooks = []
@@ -12,4 +12,4 @@ class SequentialExperiments(MultipleExperiments):
             from rl.hooks.arrays import ArrayHook
             hooks.append(ArrayHook())
 
-        super(SequentialExperiments, self).__init__(*args, hooks=hooks, **kwargs)
+        super(SequentialExperiments, self).__init__(name, hooks=hooks, **kwargs)
