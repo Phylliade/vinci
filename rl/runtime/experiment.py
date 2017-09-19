@@ -10,7 +10,7 @@ from .runtime import runtime
 class PersistentExperiment(object):
     """An abstract experiment only assuming filesystem related functions"""
 
-    def __init__(self, experiment_id, path="./experiments/", force=False, use_tf=True):
+    def __init__(self, experiment_id, path="./experiments/", force=False):
         self.id = str(experiment_id)
         self.experiment_base = path.rstrip("/") + "/" + self.id + "/"
 
@@ -33,14 +33,6 @@ class PersistentExperiment(object):
         # It will be configured later
         self.has_default_experiment = False
 
-        if use_tf:
-            import tensorflow as tf
-            from keras import backend as K
-            # Use Keras's sessions
-            # self.session = K.get_session()
-            self.session = tf.Session()
-            K.set_session(self.session)
-
     def endpoint(self, path):
         full_path = self.experiment_base + path.rstrip("/") + "/"
         # An endpoint could already exist, because used elsewhere in the experiment
@@ -53,7 +45,7 @@ class PersistentExperiment(object):
 
 
 class Experiment(PersistentExperiment):
-    def __init__(self, experiments=None, hooks=None, **kwargs):
+    def __init__(self, experiments=None, hooks=None, use_tf=True, **kwargs):
         super(Experiment, self).__init__(**kwargs)
 
         self.count = 1
@@ -80,6 +72,14 @@ class Experiment(PersistentExperiment):
             hooks_list += hooks
 
         self.hooks = ExperimentHooksContainer(self, hooks=hooks_list)
+
+        if use_tf:
+            import tensorflow as tf
+            from keras import backend as K
+            # Use Keras's sessions
+            # self.session = K.get_session()
+            self.session = tf.Session()
+            K.set_session(self.session)
 
     def __enter__(self):
         print_info("Beginning experiment {}".format(self.id))
