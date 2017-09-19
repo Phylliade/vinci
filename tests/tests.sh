@@ -1,8 +1,4 @@
-pwd
-
-ls
-
-python -c "import rl.experiments"
+#!/usr/bin/env bash
 
 echo "Running import test"
 python imports.py
