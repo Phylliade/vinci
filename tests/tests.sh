@@ -2,7 +2,7 @@ pwd
 
 ls
 
-python -c "import rl.experiments.sequential"
+python -c "import rl.experiments"
 
 echo "Running import test"
 python imports.py
