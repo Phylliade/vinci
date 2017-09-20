@@ -78,6 +78,9 @@ class Hook(object):
 
     def register_agent(self, agent):
         self.agent = agent
+        # Also register the experiment in case the hook has directly been given to the agent
+        if not hasattr(self, "experiment"):
+            self.register_experiment(agent.experiment)
 
     def register_experiment(self, experiment):
         self.experiment = experiment

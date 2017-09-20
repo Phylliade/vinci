@@ -45,8 +45,8 @@ class PersistentExperiment(object):
 
 
 class Experiment(PersistentExperiment):
-    def __init__(self, experiments=None, hooks=None, use_tf=True, **kwargs):
-        super(Experiment, self).__init__(**kwargs)
+    def __init__(self, experiment_id, experiments=None, hooks=None, use_tf=True, **kwargs):
+        super(Experiment, self).__init__(experiment_id, **kwargs)
 
         self.count = 1
         self.done = False
