@@ -5,7 +5,6 @@ from rl.hooks import ExperimentHooksContainer
 from .run import Run
 from ..utils.printer import print_info, print_warning
 from .runtime import runtime
-from rl.hooks.arrays import ExperimentArrayHook
 
 
 class PersistentExperiment(object):
@@ -70,6 +69,7 @@ class Experiment(PersistentExperiment):
 
         # Experiment-level hooks
         if analytics:
+            from rl.hooks.arrays import ExperimentArrayHook
             hooks_list.append(ExperimentArrayHook())
 
         # Add user-provided hooks
