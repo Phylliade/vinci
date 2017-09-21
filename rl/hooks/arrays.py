@@ -3,7 +3,7 @@ import pandas as pd
 
 
 class ArrayHook(Hook):
-    """This hook collects data on a run-basis"""
+    """Collect data during the span of multiple experiments, run by run"""
     def experiments_init(self):
         # An experiments-wide endpoint
         self.endpoint = self.experiments.endpoint("data")
@@ -120,7 +120,7 @@ class ArrayHook(Hook):
 
 
 class ExperimentArrayHook(Hook):
-    """This hook collects data on a run-basis"""
+    """Collect data during the span of an experiment, run by run"""
     def experiment_init(self):
         self.endpoint = self.experiment.endpoint("data")
 
@@ -141,22 +141,6 @@ class ExperimentArrayHook(Hook):
 
     def experiment_end(self):
         self.save()
-
-        # Reset the memories
-        # Rewards
-        self.experiment_rewards = []
-
-        # IsTraining
-        self.experiment_istraining = []
-
-        # Episode count
-        self.experiment_episode = []
-
-        # Step count
-        self.experiment_step = []
-
-        # Experiment index
-        self.experiment_index = self.experiment.id
 
     # TODO: Remove this
     def agent_init(self):
@@ -180,11 +164,10 @@ class ExperimentArrayHook(Hook):
         self.experiment_istraining.append(self.agent.training)
         # Step
         self.experiment_step.append(self.agent.training_step)
-
         # Run index
         self.run_index.append(self.agent.run_number)
 
     def save(self):
         print("Saving data")
-        data = pd.DataFrame([self.experiment_rewards, self.experiment_episode, self.experiment_istraining, self.experiment_step], index=self.run_index)
+        data = pd.DataFrame({"rewards": self.experiment_rewards, "episode": self.experiment_episode, "is_training": self.experiment_istraining, "step": self.experiment_step}, index=self.run_index)
         data.to_pickle(self.endpoint + "data.p")

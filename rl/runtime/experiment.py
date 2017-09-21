@@ -5,6 +5,7 @@ from rl.hooks import ExperimentHooksContainer
 from .run import Run
 from ..utils.printer import print_info, print_warning
 from .runtime import runtime
+from rl.hooks.arrays import ExperimentArrayHook
 
 
 class PersistentExperiment(object):
@@ -45,7 +46,7 @@ class PersistentExperiment(object):
 
 
 class Experiment(PersistentExperiment):
-    def __init__(self, experiment_id, experiments=None, hooks=None, use_tf=True, tf_config=None, **kwargs):
+    def __init__(self, experiment_id, experiments=None, hooks=None, use_tf=True, tf_config=None, analytics=False, **kwargs):
         super(Experiment, self).__init__(experiment_id, **kwargs)
 
         self.count = 1
@@ -66,6 +67,10 @@ class Experiment(PersistentExperiment):
                 hooks_list = list(self.experiments.hooks)
         else:
             hooks_list = []
+
+        # Experiment-level hooks
+        if analytics:
+            hooks_list.append(ExperimentArrayHook())
 
         # Add user-provided hooks
         if hooks is not None:
