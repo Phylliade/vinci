@@ -45,7 +45,7 @@ class PersistentExperiment(object):
 
 
 class Experiment(PersistentExperiment):
-    def __init__(self, experiment_id, experiments=None, hooks=None, use_tf=True, **kwargs):
+    def __init__(self, experiment_id, experiments=None, hooks=None, use_tf=True, tf_config=None, **kwargs):
         super(Experiment, self).__init__(experiment_id, **kwargs)
 
         self.count = 1
@@ -78,7 +78,7 @@ class Experiment(PersistentExperiment):
             from keras import backend as K
             # Use Keras's sessions
             # self.session = K.get_session()
-            self.session = tf.Session()
+            self.session = tf.Session(config=tf_config)
             K.set_session(self.session)
 
     def __enter__(self):
