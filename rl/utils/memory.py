@@ -50,7 +50,7 @@ class RingBuffer(object):
 
     def __getitem__(self, idx):
         if idx < 0 or idx >= self.length:
-            raise KeyError()
+            raise KeyError("Invalid index {}, for a buffer of length {}".format(idx, self.length))
         return self.data[(self.start + idx) % self.maxlen]
 
     def append(self, v):

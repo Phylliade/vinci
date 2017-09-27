@@ -104,7 +104,7 @@ class SimpleMemory(Memory):
         """Dump the memory into a pickle file"""
         print("Saving memory")
         with open(file, "wb") as fd:
-            pickle.dump(self.buffer, fd)
+            pickle.dump(self.buffer.dump(), fd)
 
     def dump(self):
         """Get the memory content as a single array"""
