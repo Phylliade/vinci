@@ -15,41 +15,39 @@ class PortraitHook(Hook):
         self.endpoint_actor_distribution = self.experiment.endpoint("figures/distribution/actor")
         self.endpoint_critic_distribution = self.experiment.endpoint("figures/distribution/critic")
 
-    def step_end(self):
-        # TODO: Move this hook to a non-blocking thread
-        if self.agent.done:
+    def episode_end(self):
+        print("Plotting portrait")
+        # Get the file name
+        if self.agent.training:
+            actor_endpoint = self.endpoint_actor_test
+            critic_endpoint = self.endpoint_critic_test
+        else:
+            actor_endpoint = self.endpoint_actor
+            critic_endpoint = self.endpoint_critic
 
-            # Get the file name
-            if self.agent.training:
-                actor_endpoint = self.endpoint_actor_test
-                critic_endpoint = self.endpoint_critic_test
-            else:
-                actor_endpoint = self.endpoint_actor
-                critic_endpoint = self.endpoint_critic
+        file_name = "{}.png".format(self.count)
 
-            file_name = "{}.png".format(self.count)
-
-            # Only plot portraits for envs whose observation_space is 2-dimensional
-            if self.agent.env.observation_space.dim == 2:
-                # Plot the phase portrait of the actor and the critic
-                portrait_actor(
-                    self.agent.actor,
-                    self.agent.env,
-                    save_figure=True,
-                    figure_file=(actor_endpoint + file_name))
-                portrait_critic(
-                    self.agent.critic,
-                    self.agent.env,
-                    save_figure=True,
-                    figure_file=(critic_endpoint + file_name))
-
-            # Plot the distribution of the actor and the critic
-            plot_distribution(
+        # Only plot portraits for envs whose observation_space is 2-dimensional
+        if self.agent.env.observation_space.dim == 2:
+            # Plot the phase portrait of the actor and the critic
+            portrait_actor(
                 self.agent.actor,
+                self.agent.env,
+                save_figure=True,
+                figure_file=(actor_endpoint + file_name))
+            portrait_critic(
                 self.agent.critic,
                 self.agent.env,
-                actor_file=(self.endpoint_actor_distribution + file_name),
-                critic_file=(self.endpoint_actor_distribution + file_name))
+                save_figure=True,
+                figure_file=(critic_endpoint + file_name))
+
+        # Plot the distribution of the actor and the critic
+        plot_distribution(
+            self.agent.actor,
+            self.agent.critic,
+            self.agent.env,
+            actor_file=(self.endpoint_actor_distribution + file_name),
+            critic_file=(self.endpoint_actor_distribution + file_name))
 
 
 class TrajectoryHook(Hook):
@@ -65,15 +63,16 @@ class TrajectoryHook(Hook):
             self.trajectory["x"].append(self.agent.observation[0])
             self.trajectory["y"].append(self.agent.observation[1])
 
-            if self.agent.done:
-                plot_trajectory(
-                    self.trajectory,
-                    self.agent.actor,
-                    self.agent.env,
-                    figure_file=(self.endpoint + "{}.png".format(self.count)))
-                # Flush the trajectories
-                self.trajectory["x"] = []
-                self.trajectory["y"] = []
+    def episode_end(self):
+        print("Plotting trajectory")
+        plot_trajectory(
+            self.trajectory,
+            self.agent.actor,
+            self.agent.env,
+            figure_file=(self.endpoint + "{}.png".format(self.count)))
+        # Flush the trajectories
+        self.trajectory["x"] = []
+        self.trajectory["y"] = []
 
 
 class MemoryDistributionHook(Hook):
@@ -81,15 +80,15 @@ class MemoryDistributionHook(Hook):
         super(MemoryDistributionHook, self).agent_init(*args, **kwargs)
         self.endpoint = self.experiment.endpoint("figures/memory/action")
 
-    def step_end(self):
-        if self.agent.done:
-            replay_buffer = self.agent.memory.dump()
-            # Collect every states and actions
-            actions = []
-            states = []
+    def episode_end(self):
+        print("Plotting memory distribution")
+        replay_buffer = self.agent.memory.dump()
+        # Collect every states and actions
+        actions = []
+        states = []
 
-            for experience in replay_buffer:
-                actions.append(experience.action)
-                states.append(experience.state0)
+        for experience in replay_buffer:
+            actions.append(experience.action)
+            states.append(experience.state0)
 
-            plot_action_distribution(actions, file=(self.endpoint + "{}.png".format(self.count)))
+        plot_action_distribution(actions, file=(self.endpoint + "{}.png".format(self.count)))

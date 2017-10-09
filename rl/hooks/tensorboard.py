@@ -14,12 +14,12 @@ class TensorboardHook(Hook):
             # FIXME: Use only one summary
             self.summary_writer.add_summary(summary, self.agent.step)
 
+    def episode_end(self):
         # Episode summaries
-        if self.agent.done:
-            episode_summary = tf.Summary(value=[
-                tf.Summary.Value(
-                    tag="episode_reward",
-                    simple_value=self.agent.episode_reward),
-            ])
-            self.summary_writer.add_summary(episode_summary,
-                                            self.agent.episode)
+        episode_summary = tf.Summary(value=[
+            tf.Summary.Value(
+                tag="episode_reward",
+                simple_value=self.agent.episode_reward),
+        ])
+        self.summary_writer.add_summary(episode_summary,
+                                        self.agent.episode)

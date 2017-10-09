@@ -294,6 +294,7 @@ class RLAgent(Agent):
                     'nb_steps': np.float_(self.step),
                 }
                 callbacks.on_episode_end(self.episode, logs=episode_logs)
+                self.hooks.episode_end()
 
             # Stop run if termination criterion met
             if termination():
