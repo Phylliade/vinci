@@ -50,7 +50,8 @@ class RLAgent(Agent):
              nb_max_episode_steps=None,
              reward_scaling=1.,
              plots=False,
-             tensorboard=False):
+             tensorboard=False,
+             **kwargs):
         """
         Run steps until termination.
         This method shouldn't be called directly, but instead called in :func:`fit` and :func:`test`
@@ -378,7 +379,7 @@ class RLAgent(Agent):
                 print_status(
                     "Training epoch: {}/{} ".format(epoch, steps),
                     terminal=(epoch == steps))
-            self.backward(offline=True, **kwargs)
+            self.backward_offline(**kwargs)
 
             # Hooks
             self.hooks()

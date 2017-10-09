@@ -32,8 +32,6 @@ class DDPGAgent(RLAgent):
     :type memory: :class:`rl.memory.Memory`
     :param float gamma: Discount factor
     :param int batch_size: Size of the minibatches
-    :param int nb_steps_warmup_critic: Number of warm-up steps for the critic. During these steps, there is no training
-    :param int nb_steps_warmup_actor: Number of warm-up steps for the actor. During these steps, there is no training
     :param int train_interval: Train only at multiples of this number
     :param int memory_interval: Add experiences to memory only at multiples of this number
     :param delta_clip: Delta to which the rewards are clipped (via Huber loss, see https://github.com/devsisters/DQN-tensorflow/issues/16)
@@ -51,8 +49,6 @@ class DDPGAgent(RLAgent):
                  memory,
                  gamma=.99,
                  batch_size=32,
-                 nb_steps_warmup_critic=1000,
-                 nb_steps_warmup_actor=1000,
                  train_interval=1,
                  memory_interval=1,
                  delta_clip=np.inf,
@@ -94,8 +90,6 @@ class DDPGAgent(RLAgent):
         self.nb_actions = env.action_space.dim
         self.actions_low = env.action_space.low
         self.actions_high = env.action_space.high
-        self.nb_steps_warmup_actor = nb_steps_warmup_actor
-        self.nb_steps_warmup_critic = nb_steps_warmup_critic
         self.random_process = random_process
         self.delta_clip = delta_clip
         self.gamma = gamma
@@ -140,6 +134,9 @@ class DDPGAgent(RLAgent):
         self.target_critic = clone_model(self.critic,
                                          self.custom_model_objects)
         self.target_critic.compile(optimizer='sgd', loss='mse')
+
+        print(self.target_actor.get_weights())
+        print(self.actor.get_weights())
 
         self.compile_actor()
         self.compile_critic()
@@ -233,7 +230,7 @@ class DDPGAgent(RLAgent):
 
         # Additional actor metrics
         actor_norms = [tf.norm(weight) for weight in self.actor.trainable_weights]
-        for var, norm in zip(self.critic.trainable_weights,
+        for var, norm in zip(self.actor.trainable_weights,
                              actor_norms):
             var_name = "actor/{}/norm".format(var.name)
             self.variables[var_name] = norm
@@ -374,41 +371,26 @@ class DDPGAgent(RLAgent):
 
         return (action)
 
-    def backward(self,
-                 offline=False,
-                 fit_actor=True,
-                 fit_critic=True):
+    def backward(self, warmup_actor=200, warmup_critic=200):
         """
         Backward method of the DDPG agent
-
-        :param bool offline: Add the new experiences to memory
-        :param bool fit_actor: Activate of Deactivate training of the actor
-        :param bool fit_critic: Activate of Deactivate training of the critic
         """
         # Stop here if not training
         if not self.training:
             return
 
-        warmingup_actor = (self.training_step <= self.nb_steps_warmup_critic)
-        # TODO: Send in an event if warming_up is over
-        if warmingup_actor:
-            pass
-
         # Store most recent experience in memory.
-        # Nothing to store in offline mode
-        if not offline:
-            if self.training_step % self.memory_interval == 0:
-                self.memory.append(Experience(self.observation, self.action, self.reward,
-                                   self.observation_1, self.done))
+        if self.training_step % self.memory_interval == 0:
+            self.memory.append(Experience(self.observation, self.action, self.reward,
+                               self.observation_1, self.done))
 
         # Train the networks
         if self.training_step % self.train_interval == 0:
-
             # If warm up is over:
             # Update critic
-            fit_critic = (fit_critic and not warmingup_actor)
+            fit_critic = (self.training_step >warmup_critic)
             # Update actor
-            fit_actor = (fit_actor and self.training_step > self.nb_steps_warmup_actor)
+            fit_actor = (self.training_step > warmup_actor)
 
             # Hard update the target nets if necessary
             if self.target_actor_update >= 1:
@@ -433,6 +415,49 @@ class DDPGAgent(RLAgent):
                     can_reset_actor=can_reset_actor,
                     hard_update_target_critic=hard_update_target_critic,
                     hard_update_target_actor=hard_update_target_actor)
+
+    def backward_offline(self,
+                 fit_actor=True,
+                 fit_critic=True):
+        """
+        Offline Backward method of the DDPG agent
+
+        :param bool offline: Add the new experiences to memory
+        :param bool fit_actor: Activate of Deactivate training of the actor
+        :param bool fit_critic: Activate of Deactivate training of the critic
+        """
+        # Stop here if not training
+        if not self.training:
+            return
+
+        # Train the networks
+        if self.training_step % self.train_interval == 0:
+
+            # Hard update the target nets if necessary
+            if self.target_actor_update >= 1:
+                hard_update_target_actor = self.training_step % self.target_actor_update == 0
+            else:
+                hard_update_target_actor = False
+
+            if self.target_critic_update >= 1:
+                hard_update_target_critic = self.training_step % self.target_critic_update == 0
+            else:
+                hard_update_target_critic = False
+
+            # Whether to reset the actor
+            if self.done and (self.episode % 5 == 0) and self.reset_controlers:
+                can_reset_actor = True
+            else:
+                can_reset_actor = False
+
+            if (fit_actor or fit_critic):
+                self.fit_controllers(
+                    fit_critic=fit_critic,
+                    fit_actor=fit_actor,
+                    can_reset_actor=can_reset_actor,
+                    hard_update_target_critic=hard_update_target_critic,
+                    hard_update_target_actor=hard_update_target_actor)
+
 
     def fit_controllers(self,
                         fit_critic=True,
