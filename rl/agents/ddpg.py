@@ -133,9 +133,6 @@ class DDPGAgent(RLAgent):
         self.memory = memory
 
     def compile(self):
-        # def clipped_error(y_true, y_pred):
-        # return K.mean(huber_loss(y_true, y_pred, self.delta_clip), axis=-1)
-
         # Compile target networks. We only use them in feed-forward mode, hence we can pass any
         # optimizer and loss since we never use it anyway.
         self.target_actor = clone_model(self.actor, self.custom_model_objects)
@@ -144,11 +141,115 @@ class DDPGAgent(RLAgent):
                                          self.custom_model_objects)
         self.target_critic.compile(optimizer='sgd', loss='mse')
 
+        self.compile_actor()
+        self.compile_critic()
+
+        # Collect summaries directly from variables
+        for (var_name, variable) in self.variables.items():
+            self.summary_variables[var_name] = (tf.summary.scalar(
+                var_name, variable))
+        # Special selections of summary variables
+        # Critic
+        self.critic_summaries = [
+            value for (key, value) in self.summary_variables.items()
+            if (key.startswith("critic/") or key.startswith("target_critic/"))
+        ]
+        # Actor
+        # No need to collect the actor's loss, since we already have actor/objective
+        self.actor_summaries = [
+            value for (key, value) in self.summary_variables.items()
+            if (key.startswith("actor/") and not key == ("actor/loss") or key.startswith("target_actor/"))
+        ]
+
+        # Initialize the remaining variables
+        # FIXME: Use directly Keras backend
+        # This is a kind of a hack
+        # Taken from the "initialize_variables" of the Keras Tensorflow backend
+        # https://github.com/fchollet/keras/blob/master/keras/backend/tensorflow_backend.py#L330
+        # It permits to only initialize variables that are not already initialized
+        # Without that, the networks and target networks get initialized again, to different values (stochastic initialization)
+        # This is a problem when a network and it's target network do not begin with the same parameter values...
+        variables = tf.global_variables()
+        uninitialized_variables = []
+        for v in variables:
+            if not hasattr(v,
+                           '_keras_initialized') or not v._keras_initialized:
+                uninitialized_variables.append(v)
+                v._keras_initialized = True
+        self.session.run(tf.variables_initializer(uninitialized_variables))
+        # self.session.run(tf.global_variables_initializer())
+
+        # Save the initial values of the networks
+        self.checkpoint()
+
+        self.compiled = True
+
+    def compile_actor(self):
         # We also compile the actor. We never optimize the actor using Keras but instead compute
         # the policy gradient ourselves. However, we need the actor in feed-forward mode, hence
         # we also compile it with any optimizer
         self.actor.compile(optimizer='sgd', loss='mse')
 
+        # Target actor optimizer
+        if self.target_actor_update < 1.:
+            # Include soft target model updates.
+            self.target_actor_train_op = get_soft_target_model_ops(
+                self.target_actor.weights, self.actor.weights,
+                self.target_actor_update)
+
+        # Actor optimizer
+        actor_optimizer = tf.train.AdamOptimizer()
+        # Be careful to negate the gradient
+        # Since the optimizer wants to minimize the value
+        self.variables["actor/loss"] = -tf.reduce_mean(
+            self.critic([self.variables["state"], self.actor(self.variables["state"])]))
+        self.variables["actor/objective"] = -self.variables["actor/loss"]
+
+        actor_gradient_vars = actor_optimizer.compute_gradients(
+            self.variables["actor/loss"],
+            var_list=self.actor.trainable_weights)
+        # Gradient inverting
+        # as described in https://arxiv.org/abs/1511.04143
+        if self.invert_gradients:
+            actor_gradient_vars = [(gradient_inverter(
+                x[0], self.gradient_inverter_min, self.gradient_inverter_max),
+                                    x[1]) for x in actor_gradient_vars]
+
+        # Compute the norm of each weights's gradient
+        actor_gradients_norms = [
+            tf.norm(grad_var[0]) for grad_var in actor_gradient_vars
+        ]
+        for var, norm in zip(self.actor.trainable_weights,
+                             actor_gradients_norms):
+            var_name = "actor/{}/gradient_norm".format(var.name)
+            self.variables[var_name] = (norm)
+        # As long as the sum
+        self.variables["actor/gradient_norm"] = tf.reduce_sum(
+            actor_gradients_norms)
+
+        # The actual train op
+        self.actor_train_op = actor_optimizer.apply_gradients(
+            actor_gradient_vars)
+
+        # Additional actor metrics
+        actor_norms = [tf.norm(weight) for weight in self.actor.trainable_weights]
+        for var, norm in zip(self.critic.trainable_weights,
+                             actor_norms):
+            var_name = "actor/{}/norm".format(var.name)
+            self.variables[var_name] = norm
+        self.variables["actor/norm"] = tf.reduce_sum(
+            actor_norms)
+
+        # Additional target actor metrics
+        target_actor_norms = [tf.norm(weight) for weight in self.target_actor.trainable_weights]
+        for var, norm in zip(self.target_critic.trainable_weights,
+                             target_actor_norms):
+            var_name = "target_actor/{}/norm".format(var.name)
+            self.variables[var_name] = norm
+        self.variables["target_actor/norm"] = tf.reduce_sum(
+            actor_norms)
+
+    def compile_critic(self):
         # Compile the critic for the same reason
         self.critic.compile(optimizer='sgd', loss='mse')
 
@@ -204,104 +305,6 @@ class DDPGAgent(RLAgent):
                 self.target_critic.weights, self.critic.weights,
                 self.target_critic_update)
 
-        # Target actor optimizer
-        if self.target_actor_update < 1.:
-            # Include soft target model updates.
-            self.target_actor_train_op = get_soft_target_model_ops(
-                self.target_actor.weights, self.actor.weights,
-                self.target_actor_update)
-
-        # Actor optimizer
-        actor_optimizer = tf.train.AdamOptimizer()
-        # Be careful to negate the gradient
-        # Since the optimizer wants to minimize the value
-        self.variables["actor/loss"] = -tf.reduce_mean(
-            self.critic([self.variables["state"], self.actor(self.variables["state"])]))
-        self.variables["actor/objective"] = -self.variables["actor/loss"]
-
-        actor_gradient_vars = actor_optimizer.compute_gradients(
-            self.variables["actor/loss"],
-            var_list=self.actor.trainable_weights)
-        # Gradient inverting
-        # as described in https://arxiv.org/abs/1511.04143
-        if self.invert_gradients:
-            actor_gradient_vars = [(gradient_inverter(
-                x[0], self.gradient_inverter_min, self.gradient_inverter_max),
-                                    x[1]) for x in actor_gradient_vars]
-
-        # Compute the norm of each weights's gradient
-        actor_gradients_norms = [
-            tf.norm(grad_var[0]) for grad_var in actor_gradient_vars
-        ]
-        for var, norm in zip(self.actor.trainable_weights,
-                             actor_gradients_norms):
-            var_name = "actor/{}/gradient_norm".format(var.name)
-            self.variables[var_name] = (norm)
-        # As long as the sum
-        self.variables["actor/gradient_norm"] = tf.reduce_sum(
-            actor_gradients_norms)
-
-        # The actual train op
-        self.actor_train_op = actor_optimizer.apply_gradients(
-            actor_gradient_vars)
-
-        # Additional actor metrics
-        actor_norms = [tf.norm(weight) for weight in self.actor.trainable_weights]
-        for var, norm in zip(self.critic.trainable_weights,
-                             actor_norms):
-            var_name = "actor/{}/norm".format(var.name)
-            self.variables[var_name] = norm
-        self.variables["actor/norm"] = tf.reduce_sum(
-            critic_norms)
-
-        # Additional target actor metrics
-        target_actor_norms = [tf.norm(weight) for weight in self.target_actor.trainable_weights]
-        for var, norm in zip(self.target_critic.trainable_weights,
-                             target_actor_norms):
-            var_name = "target_actor/{}/norm".format(var.name)
-            self.variables[var_name] = norm
-        self.variables["target_actor/norm"] = tf.reduce_sum(
-            critic_norms)
-
-        # Collect summaries directly from variables
-        for (var_name, variable) in self.variables.items():
-            self.summary_variables[var_name] = (tf.summary.scalar(
-                var_name, variable))
-        # Special selections of summary variables
-        # Critic
-        self.critic_summaries = [
-            value for (key, value) in self.summary_variables.items()
-            if (key.startswith("critic/") or key.startswith("target_critic/"))
-        ]
-        # Actor
-        # No need to collect the actor's loss, since we already have actor/objective
-        self.actor_summaries = [
-            value for (key, value) in self.summary_variables.items()
-            if (key.startswith("actor/") and not key == ("actor/loss") or key.startswith("target_actor/"))
-        ]
-
-        # Initialize the remaining variables
-        # FIXME: Use directly Keras backend
-        # This is a kind of a hack
-        # Taken from the "initialize_variables" of the Keras Tensorflow backend
-        # https://github.com/fchollet/keras/blob/master/keras/backend/tensorflow_backend.py#L330
-        # It permits to only initialize variables that are not already initialized
-        # Without that, the networks and target networks get initialized again, to different values (stochastic initialization)
-        # This is a problem when a network and it's target network do not begin with the same parameter values...
-        variables = tf.global_variables()
-        uninitialized_variables = []
-        for v in variables:
-            if not hasattr(v,
-                           '_keras_initialized') or not v._keras_initialized:
-                uninitialized_variables.append(v)
-                v._keras_initialized = True
-        self.session.run(tf.variables_initializer(uninitialized_variables))
-        # self.session.run(tf.global_variables_initializer())
-
-        # Save the initial values of the networks
-        self.checkpoint()
-
-        self.compiled = True
 
     def load_weights(self, filepath):
         filename, extension = os.path.splitext(filepath)
@@ -480,7 +483,7 @@ class DDPGAgent(RLAgent):
     def fit_critic(self, batch, sgd_iterations=1):
         """Fit the critic network"""
         # Get the target action
-        # \pi(s_t)
+        # \pi(s_{t + 1})
         if USE_KERAS_INFERENCE:
             target_actions = self.target_actor.predict_on_batch(batch.state1)
         else:
@@ -490,8 +493,8 @@ class DDPGAgent(RLAgent):
                            K.learning_phase(): 0})
         assert target_actions.shape == (self.batch_size, self.nb_actions)
 
-        # Get the target Q value
-        # Q(s_t, \pi(s_t))
+        # Get the target Q value of the next state
+        # Q(s_{t + 1}, \pi(s_{t + 1}))
         if USE_KERAS_INFERENCE:
             target_q_values = self.target_critic.predict_on_batch(
                 [batch.state1, target_actions])
@@ -506,8 +509,8 @@ class DDPGAgent(RLAgent):
         # Also works
         # assert target_q_values.shape == (self.batch_size, )
 
-        # Compute the critic targets:
-        # r_t + gamma * Q(s_t, \pi(s_t))
+        # Full the critic targets:
+        # r_t + gamma * Q(s_{t + 1}, \pi(s_{t + 1}))
         discounted_reward_batch = self.gamma * target_q_values
         critic_targets = (batch.reward + discounted_reward_batch)
 

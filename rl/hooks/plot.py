@@ -18,7 +18,7 @@ class PortraitHook(Hook):
     def episode_end(self):
         print("Plotting portrait")
         # Get the file name
-        if self.agent.training:
+        if not self.agent.training:
             actor_endpoint = self.endpoint_actor_test
             critic_endpoint = self.endpoint_critic_test
         else:

@@ -269,7 +269,7 @@ class RLAgent(Agent):
             # Train the algorithm
             self.backward()
 
-            # Hooks
+            # step_end Hooks
             self.hooks()
 
             # Callbacks
@@ -329,7 +329,7 @@ class RLAgent(Agent):
 
     def train_offline(self,
                       steps=1,
-                      episode_length=20,
+                      episode_length=200,
                       plots=False,
                       tensorboard=False,
                       verbose=True,
@@ -345,9 +345,8 @@ class RLAgent(Agent):
             from rl.hooks.tensorboard import TensorboardHook
             self.hooks.append(TensorboardHook(agent_id=self.id))
         if plots:
-            from rl.hooks.plot import PortraitHook, TrajectoryHook
+            from rl.hooks.plot import PortraitHook
             self.hooks.append(PortraitHook(agent_id=self.id))
-            self.hooks.append(TrajectoryHook(agent_id=self.id))
 
         # Run_init hooks
         self.hooks.run_init()
@@ -379,10 +378,13 @@ class RLAgent(Agent):
                 print_status(
                     "Training epoch: {}/{} ".format(epoch, steps),
                     terminal=(epoch == steps))
-            self.backward(offline=True)
+            self.backward(offline=True, **kwargs)
 
             # Hooks
             self.hooks()
+
+            if self.done:
+                self.hooks.episode_end()
 
         # End of the run
         self.hooks.run_end()

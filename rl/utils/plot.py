@@ -60,7 +60,7 @@ def portrait_critic(critic, env, figure=None, definition=50, plot=True, action=[
         plt.scatter([0], [0])
         plt.xlabel(x_label)
         plt.ylabel(y_label)
-        plt.title("Critic phase portrait")
+        plt.title("Critic phase portrait at action {}".format(action))
         if save_figure:
             # TODO: Create the directory if it doesn't exist
             plt.savefig(figure_file)
