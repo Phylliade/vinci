@@ -43,7 +43,7 @@ class RLAgent(Agent):
              action_repetition=1,
              callbacks=None,
              verbose=1,
-             visualize=False,
+             render=False,
              nb_max_start_steps=0,
              start_step_policy=None,
              log_interval=10000,
@@ -112,7 +112,7 @@ class RLAgent(Agent):
             if verbose >= 1:
                 callbacks += [TestLogger()]
         callbacks = [] if not callbacks else callbacks[:]
-        if visualize:
+        if render:
             callbacks += [Visualizer()]
         history = History()
         callbacks += [history]

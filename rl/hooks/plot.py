@@ -55,7 +55,7 @@ class PortraitHook(Hook):
 class TrajectoryHook(Hook):
     """Records the trajectory of the agent"""
     def agent_init(self, *args, **kwargs):
-        super(TrajectoryHook, self)._agent_init(*args, **kwargs)
+        super(TrajectoryHook, self).agent_init(*args, **kwargs)
         self.trajectory = {"x": [], "y": []}
         self.endpoint = self.experiment.endpoint("figures/trajectory")
 
