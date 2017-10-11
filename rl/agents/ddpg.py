@@ -12,7 +12,6 @@ from rl.memory import Experience
 from rl.agents.rlagent import RLAgent
 from rl.utils.printer import print_warning
 
-
 # Whether to use Keras inference engine
 USE_KERAS_INFERENCE = False
 
@@ -42,27 +41,28 @@ class DDPGAgent(RLAgent):
     :param bool invert_gradients: Use gradient inverting as defined in https://arxiv.org/abs/1511.04143
     """
 
-    def __init__(self,
-                 actor,
-                 critic,
-                 env,
-                 memory,
-                 gamma=.99,
-                 batch_size=32,
-                 train_interval=1,
-                 memory_interval=1,
-                 delta_clip=np.inf,
-                 random_process=None,
-                 custom_model_objects=None,
-                 target_critic_update=1e-3,
-                 # FIXME: Use 1e-4 as stated in reproducibility paper
-                 target_actor_update=1e-3,
-                 invert_gradients=False,
-                 gradient_inverter_min=-1.,
-                 gradient_inverter_max=1.,
-                 actor_reset_threshold=0.3,
-                 reset_controlers=False,
-                 **kwargs):
+    def __init__(
+            self,
+            actor,
+            critic,
+            env,
+            memory,
+            gamma=.99,
+            batch_size=32,
+            train_interval=1,
+            memory_interval=1,
+            delta_clip=np.inf,
+            random_process=None,
+            custom_model_objects=None,
+            target_critic_update=1e-3,
+            # FIXME: Use 1e-4 as stated in reproducibility paper
+            target_actor_update=1e-3,
+            invert_gradients=False,
+            gradient_inverter_min=-1.,
+            gradient_inverter_max=1.,
+            actor_reset_threshold=0.3,
+            reset_controlers=False,
+            **kwargs):
 
         if custom_model_objects is None:
             custom_model_objects = {}
@@ -135,9 +135,6 @@ class DDPGAgent(RLAgent):
                                          self.custom_model_objects)
         self.target_critic.compile(optimizer='sgd', loss='mse')
 
-        print(self.target_actor.get_weights())
-        print(self.actor.get_weights())
-
         self.compile_actor()
         self.compile_critic()
 
@@ -155,7 +152,8 @@ class DDPGAgent(RLAgent):
         # No need to collect the actor's loss, since we already have actor/objective
         self.actor_summaries = [
             value for (key, value) in self.summary_variables.items()
-            if (key.startswith("actor/") and not key == ("actor/loss") or key.startswith("target_actor/"))
+            if (key.startswith("actor/") and not key == ("actor/loss")
+                or key.startswith("target_actor/"))
         ]
 
         # Initialize the remaining variables
@@ -199,7 +197,9 @@ class DDPGAgent(RLAgent):
         # Be careful to negate the gradient
         # Since the optimizer wants to minimize the value
         self.variables["actor/loss"] = -tf.reduce_mean(
-            self.critic([self.variables["state"], self.actor(self.variables["state"])]))
+            self.critic(
+                [self.variables["state"],
+                 self.actor(self.variables["state"])]))
         self.variables["actor/objective"] = -self.variables["actor/loss"]
 
         actor_gradient_vars = actor_optimizer.compute_gradients(
@@ -229,22 +229,23 @@ class DDPGAgent(RLAgent):
             actor_gradient_vars)
 
         # Additional actor metrics
-        actor_norms = [tf.norm(weight) for weight in self.actor.trainable_weights]
-        for var, norm in zip(self.actor.trainable_weights,
-                             actor_norms):
+        actor_norms = [
+            tf.norm(weight) for weight in self.actor.trainable_weights
+        ]
+        for var, norm in zip(self.actor.trainable_weights, actor_norms):
             var_name = "actor/{}/norm".format(var.name)
             self.variables[var_name] = norm
-        self.variables["actor/norm"] = tf.reduce_sum(
-            actor_norms)
+        self.variables["actor/norm"] = tf.reduce_sum(actor_norms)
 
         # Additional target actor metrics
-        target_actor_norms = [tf.norm(weight) for weight in self.target_actor.trainable_weights]
+        target_actor_norms = [
+            tf.norm(weight) for weight in self.target_actor.trainable_weights
+        ]
         for var, norm in zip(self.target_critic.trainable_weights,
                              target_actor_norms):
             var_name = "target_actor/{}/norm".format(var.name)
             self.variables[var_name] = norm
-        self.variables["target_actor/norm"] = tf.reduce_sum(
-            actor_norms)
+        self.variables["target_actor/norm"] = tf.reduce_sum(actor_norms)
 
     def compile_critic(self):
         # Compile the critic for the same reason
@@ -257,8 +258,9 @@ class DDPGAgent(RLAgent):
         # Clip the critic gradient using the huber loss
         self.variables["critic/loss"] = K.mean(
             huber_loss(
-                self.critic([self.variables["state"], self.variables["action"]]), self.critic_target,
-                self.delta_clip))
+                self.critic([
+                    self.variables["state"], self.variables["action"]
+                ]), self.critic_target, self.delta_clip))
         critic_gradient_vars = critic_optimizer.compute_gradients(
             self.variables["critic/loss"],
             var_list=self.critic.trainable_weights)
@@ -278,22 +280,23 @@ class DDPGAgent(RLAgent):
             critic_gradient_vars)
 
         # Additional critic metrics
-        critic_norms = [tf.norm(weight) for weight in self.critic.trainable_weights]
-        for var, norm in zip(self.critic.trainable_weights,
-                             critic_norms):
+        critic_norms = [
+            tf.norm(weight) for weight in self.critic.trainable_weights
+        ]
+        for var, norm in zip(self.critic.trainable_weights, critic_norms):
             var_name = "critic/{}/norm".format(var.name)
             self.variables[var_name] = norm
-        self.variables["critic/norm"] = tf.reduce_sum(
-            critic_norms)
+        self.variables["critic/norm"] = tf.reduce_sum(critic_norms)
 
         # Additional target critic metrics
-        target_critic_norms = [tf.norm(weight) for weight in self.target_critic.trainable_weights]
+        target_critic_norms = [
+            tf.norm(weight) for weight in self.target_critic.trainable_weights
+        ]
         for var, norm in zip(self.target_critic.trainable_weights,
                              target_critic_norms):
             var_name = "target_critic/{}/norm".format(var.name)
             self.variables[var_name] = norm
-        self.variables["target_critic/norm"] = tf.reduce_sum(
-            critic_norms)
+        self.variables["target_critic/norm"] = tf.reduce_sum(critic_norms)
 
         # Target critic optimizer
         if self.target_critic_update < 1.:
@@ -301,7 +304,6 @@ class DDPGAgent(RLAgent):
             self.target_critic_train_op = get_soft_target_model_ops(
                 self.target_critic.weights, self.critic.weights,
                 self.target_critic_update)
-
 
     def load_weights(self, filepath):
         filename, extension = os.path.splitext(filepath)
@@ -349,8 +351,10 @@ class DDPGAgent(RLAgent):
         # action = self.actor.predict_on_batch(batch_state)[0]
         action = self.session.run(
             self.actor(self.variables["state"]),
-            feed_dict={self.variables["state"]: batch_state,
-                       K.learning_phase(): 0})[0]
+            feed_dict={
+                self.variables["state"]: batch_state,
+                K.learning_phase(): 0
+            })[0]
         assert action.shape == (self.nb_actions, )
 
         # Apply noise, if a random process is set.
@@ -381,14 +385,15 @@ class DDPGAgent(RLAgent):
 
         # Store most recent experience in memory.
         if self.training_step % self.memory_interval == 0:
-            self.memory.append(Experience(self.observation, self.action, self.reward,
-                               self.observation_1, self.done))
+            self.memory.append(
+                Experience(self.observation, self.action, self.reward,
+                           self.observation_1, self.done))
 
         # Train the networks
         if self.training_step % self.train_interval == 0:
             # If warm up is over:
             # Update critic
-            fit_critic = (self.training_step >warmup_critic)
+            fit_critic = (self.training_step > warmup_critic)
             # Update actor
             fit_actor = (self.training_step > warmup_actor)
 
@@ -416,9 +421,7 @@ class DDPGAgent(RLAgent):
                     hard_update_target_critic=hard_update_target_critic,
                     hard_update_target_actor=hard_update_target_actor)
 
-    def backward_offline(self,
-                 fit_actor=True,
-                 fit_critic=True):
+    def backward_offline(self, fit_actor=True, fit_critic=True):
         """
         Offline Backward method of the DDPG agent
 
@@ -457,7 +460,6 @@ class DDPGAgent(RLAgent):
                     can_reset_actor=can_reset_actor,
                     hard_update_target_critic=hard_update_target_critic,
                     hard_update_target_actor=hard_update_target_actor)
-
 
     def fit_controllers(self,
                         fit_critic=True,
@@ -514,8 +516,10 @@ class DDPGAgent(RLAgent):
         else:
             target_actions = self.session.run(
                 self.target_actor(self.variables["state"]),
-                feed_dict={self.variables["state"]: batch.state1,
-                           K.learning_phase(): 0})
+                feed_dict={
+                    self.variables["state"]: batch.state1,
+                    K.learning_phase(): 0
+                })
         assert target_actions.shape == (self.batch_size, self.nb_actions)
 
         # Get the target Q value of the next state
@@ -525,7 +529,8 @@ class DDPGAgent(RLAgent):
                 [batch.state1, target_actions])
         else:
             target_q_values = self.session.run(
-                self.target_critic([self.variables["state"], self.variables["action"]]),
+                self.target_critic(
+                    [self.variables["state"], self.variables["action"]]),
                 feed_dict={
                     self.variables["state"]: batch.state1,
                     self.variables["action"]: target_actions
@@ -559,7 +564,10 @@ class DDPGAgent(RLAgent):
     def fit_actor(self, batch, sgd_iterations=1, can_reset_actor=False):
         """Fit the actor network"""
 
-        feed_dict = {self.variables["state"]: batch.state0, K.learning_phase(): 1}
+        feed_dict = {
+            self.variables["state"]: batch.state0,
+            K.learning_phase(): 1
+        }
 
         # Collect metrics before training the actor
         self.metrics["actor/gradient_norm"], summaries = self.session.run(
