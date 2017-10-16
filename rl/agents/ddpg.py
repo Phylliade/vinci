@@ -135,9 +135,6 @@ class DDPGAgent(RLAgent):
                                          self.custom_model_objects)
         self.target_critic.compile(optimizer='sgd', loss='mse')
 
-        print(self.target_actor.get_weights())
-        print(self.actor.get_weights())
-
         self.compile_actor()
         self.compile_critic()
 
@@ -244,7 +241,7 @@ class DDPGAgent(RLAgent):
             var_name = "target_actor/{}/norm".format(var.name)
             self.variables[var_name] = norm
         self.variables["target_actor/norm"] = tf.reduce_sum(
-            actor_norms)
+            target_actor_norms)
 
     def compile_critic(self):
         # Compile the critic for the same reason
@@ -293,7 +290,7 @@ class DDPGAgent(RLAgent):
             var_name = "target_critic/{}/norm".format(var.name)
             self.variables[var_name] = norm
         self.variables["target_critic/norm"] = tf.reduce_sum(
-            critic_norms)
+            target_critic_norms)
 
         # Target critic optimizer
         if self.target_critic_update < 1.:
@@ -365,8 +362,6 @@ class DDPGAgent(RLAgent):
 
     def forward(self, observation):
         # Select an action.
-        # state = self.memory.get_recent_state(observation)
-        # action = self.select_action(state)
         action = self.select_action(observation)
 
         return (action)
