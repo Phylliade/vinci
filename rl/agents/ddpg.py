@@ -425,12 +425,12 @@ class DDPGAgent(RLAgent):
         if self.training_step % self.train_interval == 0:
 
             # Hard update the target nets if necessary
-            if self.target_actor_hard_update:
+            if self.target_actor_hard_updates:
                 hard_update_target_actor = self.training_step % self.target_actor_update == 0
             else:
                 hard_update_target_actor = False
 
-            if self.target_critic_hard_update:
+            if self.target_critic_hard_updates:
                 hard_update_target_critic = self.training_step % self.target_critic_update == 0
             else:
                 hard_update_target_critic = False
