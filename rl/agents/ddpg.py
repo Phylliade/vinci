@@ -33,7 +33,7 @@ class DDPGAgent(RLAgent):
     :param int batch_size: Size of the minibatches
     :param int train_interval: Train only at multiples of this number
     :param int memory_interval: Add experiences to memory only at multiples of this number
-    :param delta_clip: Delta to which the rewards are clipped (via Huber loss, see https://github.com/devsisters/DQN-tensorflow/issues/16)
+    :param gradient_clip: Delta to which the rewards are clipped (via Huber loss, see https://github.com/devsisters/DQN-tensorflow/issues/16)
     :param random_process: The noise used to perform exploration
     :param custom_model_objects:
     :param float target_critic_update: Target critic update factor
@@ -51,7 +51,7 @@ class DDPGAgent(RLAgent):
             batch_size=32,
             train_interval=1,
             memory_interval=1,
-            delta_clip=np.inf,
+            gradient_clip=np.inf,
             random_process=None,
             custom_model_objects=None,
             invert_gradients=False,
@@ -90,7 +90,7 @@ class DDPGAgent(RLAgent):
         self.actions_low = env.action_space.low
         self.actions_high = env.action_space.high
         self.random_process = random_process
-        self.delta_clip = delta_clip
+        self.gradient_clip = gradient_clip
         self.gamma = gamma
         (self.target_critic_update, self.target_critic_hard_updates) = process_hard_update_variable(
             target_critic_update)
@@ -260,7 +260,7 @@ class DDPGAgent(RLAgent):
             huber_loss(
                 self.critic([
                     self.variables["state"], self.variables["action"]
-                ]), self.critic_target, self.delta_clip))
+                ]), self.critic_target, self.gradient_clip))
         critic_gradient_vars = critic_optimizer.compute_gradients(
             self.variables["critic/loss"],
             var_list=self.critic.trainable_weights)
