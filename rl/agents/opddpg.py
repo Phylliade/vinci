@@ -12,7 +12,7 @@ class OPDDPGAgent(DDPGAgent):
         self.bootstrap_actor = bootstrap_actor
         super(OPDDPGAgent, self).__init__(**kwargs)
 
-    def fit_critic(self, batch, sgd_iterations=1):
+    def train_critic(self, batch, sgd_iterations=1):
         """Fit the critic network"""
         # Get the target action
         # \pi_bootstrap(s_{t + 1})

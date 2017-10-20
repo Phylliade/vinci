@@ -54,14 +54,13 @@ class DDPGAgent(RLAgent):
             delta_clip=np.inf,
             random_process=None,
             custom_model_objects=None,
-            target_critic_update=1e-3,
-            # FIXME: Use 1e-4 as stated in reproducibility paper
-            target_actor_update=1e-3,
             invert_gradients=False,
             gradient_inverter_min=-1.,
             gradient_inverter_max=1.,
             actor_reset_threshold=0.3,
             reset_controlers=False,
+            target_critic_update=1e-3,
+            target_actor_update=1e-3,
             **kwargs):
 
         if custom_model_objects is None:
@@ -93,9 +92,9 @@ class DDPGAgent(RLAgent):
         self.random_process = random_process
         self.delta_clip = delta_clip
         self.gamma = gamma
-        self.target_critic_update = process_parameterization_variable(
+        (self.target_critic_update, self.target_critic_hard_updates) = process_hard_update_variable(
             target_critic_update)
-        self.target_actor_update = process_parameterization_variable(
+        (self.target_actor_update, self.target_actor_hard_updates) = process_hard_update_variable(
             target_actor_update)
         self.batch_size = batch_size
         self.train_interval = train_interval
@@ -186,7 +185,7 @@ class DDPGAgent(RLAgent):
         self.actor.compile(optimizer='sgd', loss='mse')
 
         # Target actor optimizer
-        if self.target_actor_update < 1.:
+        if not self.target_actor_hard_updates:
             # Include soft target model updates.
             self.target_actor_train_op = get_soft_target_model_ops(
                 self.target_actor.weights, self.actor.weights,
@@ -301,7 +300,7 @@ class DDPGAgent(RLAgent):
             target_critic_norms)
 
         # Target critic optimizer
-        if self.target_critic_update < 1.:
+        if not self.target_critic_hard_updates:
             # Include soft target model updates.
             self.target_critic_train_op = get_soft_target_model_ops(
                 self.target_critic.weights, self.critic.weights,
@@ -346,9 +345,10 @@ class DDPGAgent(RLAgent):
             self.target_actor.reset_states()
             self.target_critic.reset_states()
 
-    def select_action(self, state):
+    def forward(self, observation):
+        # Select an action.
         # [state] is the unprocessed version of a batch
-        batch_state = [state]
+        batch_state = [observation]
         # We get a batch of 1 action
         # action = self.actor.predict_on_batch(batch_state)[0]
         action = self.session.run(
@@ -368,10 +368,6 @@ class DDPGAgent(RLAgent):
         # Clip the action value, even if the noise is making it exceed its bounds
         action = np.clip(action, self.actions_low, self.actions_high)
         return action
-
-    def forward(self, observation):
-        # Select an action.
-        action = self.select_action(observation)
 
         return (action)
 
@@ -393,41 +389,33 @@ class DDPGAgent(RLAgent):
         if self.training_step % self.train_interval == 0:
             # If warm up is over:
             # Update critic
-            fit_critic = (self.training_step > warmup_critic)
+            train_critic = (self.training_step > warmup_critic)
             # Update actor
-            fit_actor = (self.training_step > warmup_actor)
+            train_actor = (self.training_step > warmup_actor)
 
-            # Hard update the target nets if necessary
-            if self.target_actor_update >= 1:
-                hard_update_target_actor = self.training_step % self.target_actor_update == 0
-            else:
-                hard_update_target_actor = False
-            if self.target_critic_update >= 1:
-                hard_update_target_critic = self.training_step % self.target_critic_update == 0
-            else:
-                hard_update_target_critic = False
+            self._backward(train_actor=train_actor, train_critic=train_critic)
 
-            # Whether to reset the actor
-            if self.done and (self.episode % 5 == 0) and self.reset_controlers:
-                can_reset_actor = True
-            else:
-                can_reset_actor = False
-
-            if (fit_actor or fit_critic):
-                self.fit_controllers(
-                    fit_critic=fit_critic,
-                    fit_actor=fit_actor,
-                    can_reset_actor=can_reset_actor,
-                    hard_update_target_critic=hard_update_target_critic,
-                    hard_update_target_actor=hard_update_target_actor)
-
-    def backward_offline(self, fit_actor=True, fit_critic=True):
+    def backward_offline(self, train_actor=True, train_critic=True):
         """
         Offline Backward method of the DDPG agent
 
         :param bool offline: Add the new experiences to memory
-        :param bool fit_actor: Activate of Deactivate training of the actor
-        :param bool fit_critic: Activate of Deactivate training of the critic
+        :param bool train_actor: Activate of Deactivate training of the actor
+        :param bool train_critic: Activate of Deactivate training of the critic
+        """
+        # Stop here if not training
+        if not self.training:
+            return
+
+        self._backward(train_actor=train_actor, train_critic=train_critic)
+
+    def _backward(self, train_actor=True, train_critic=True):
+        """
+        Offline Backward method of the DDPG agent
+
+        :param bool offline: Add the new experiences to memory
+        :param bool train_actor: Activate of Deactivate training of the actor
+        :param bool train_critic: Activate of Deactivate training of the critic
         """
         # Stop here if not training
         if not self.training:
@@ -437,12 +425,12 @@ class DDPGAgent(RLAgent):
         if self.training_step % self.train_interval == 0:
 
             # Hard update the target nets if necessary
-            if self.target_actor_update >= 1:
+            if self.target_actor_hard_update:
                 hard_update_target_actor = self.training_step % self.target_actor_update == 0
             else:
                 hard_update_target_actor = False
 
-            if self.target_critic_update >= 1:
+            if self.target_critic_hard_update:
                 hard_update_target_critic = self.training_step % self.target_critic_update == 0
             else:
                 hard_update_target_critic = False
@@ -453,30 +441,30 @@ class DDPGAgent(RLAgent):
             else:
                 can_reset_actor = False
 
-            if (fit_actor or fit_critic):
-                self.fit_controllers(
-                    fit_critic=fit_critic,
-                    fit_actor=fit_actor,
+            if (train_actor or train_critic):
+                self.train_controllers(
+                    train_critic=train_critic,
+                    train_actor=train_actor,
                     can_reset_actor=can_reset_actor,
                     hard_update_target_critic=hard_update_target_critic,
                     hard_update_target_actor=hard_update_target_actor)
 
-    def fit_controllers(self,
-                        fit_critic=True,
-                        fit_actor=True,
+    def train_controllers(self,
+                        train_critic=True,
+                        train_actor=True,
                         can_reset_actor=False,
                         hard_update_target_critic=False,
                         hard_update_target_actor=False):
         """
         Fit the actor and critic networks
 
-        :param bool fit_critic: Whether to fit the critic
-        :param bool fit_actor: Whether to fit the actor
+        :param bool train_critic: Whether to fit the critic
+        :param bool train_actor: Whether to fit the actor
         :param bool can_reset_actor:
 
         """
 
-        if not (fit_actor or fit_critic):
+        if not (train_actor or train_critic):
             return
         else:
             batch = self.memory.sample(self.batch_size)
@@ -484,30 +472,28 @@ class DDPGAgent(RLAgent):
             summaries = []
 
             # Train networks
-            if fit_critic:
-                summaries_critic = self.fit_critic(batch)
+            if train_critic:
+                summaries_critic = self.train_critic(batch)
                 summaries += summaries_critic
 
-            if fit_actor:
-                summaries_actor = self.fit_actor(
+            if train_actor:
+                summaries_actor = self.train_actor(
                     batch, can_reset_actor=can_reset_actor)
                 summaries += summaries_actor
 
             # Update target networks
-            if self.target_actor_update >= 1:
-                if hard_update_target_actor:
-                    self.hard_update_target_actor()
+            if hard_update_target_actor:
+                self.hard_update_target_actor()
             else:
                 self.session.run(self.target_actor_train_op)
-            if self.target_critic_update >= 1:
-                if hard_update_target_critic:
-                    self.hard_update_target_critic()
+            if hard_update_target_critic:
+                self.hard_update_target_critic()
             else:
                 self.session.run(self.target_critic_train_op)
 
             self.step_summaries += summaries
 
-    def fit_critic(self, batch, sgd_iterations=1):
+    def train_critic(self, batch, sgd_iterations=1):
         """Fit the critic network"""
         # Get the target action
         # \pi(s_{t + 1})
@@ -561,7 +547,7 @@ class DDPGAgent(RLAgent):
 
         return (summaries)
 
-    def fit_actor(self, batch, sgd_iterations=1, can_reset_actor=False):
+    def train_actor(self, batch, sgd_iterations=1, can_reset_actor=False):
         """Fit the actor network"""
 
         feed_dict = {
@@ -605,7 +591,7 @@ class DDPGAgent(RLAgent):
             self.target_critic.set_weights(weights_critic)
 
 
-def process_parameterization_variable(param):
+def process_hard_update_variable(param):
     # Soft vs hard target model updates.
     if param < 0:
         raise ValueError('`target_model_update` must be >= 0, currently at {}'.
@@ -613,7 +599,9 @@ def process_parameterization_variable(param):
     elif param >= 1:
         # Hard update every `target_model_update` steps.
         param = int(param)
+        hard_updates = True
     else:
         # Soft update with `(1 - target_model_update) * old + target_model_update * new`.
         param = float(param)
-    return (param)
+        hard_updates = False
+    return (param, hard_updates)

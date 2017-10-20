@@ -407,11 +407,11 @@ class RLAgent(Agent):
     def backward(self, **kwargs):
         """
         Train the agent controllers by using the training strategy.
-        In general, backward is a wrapper around fit_controllers: It selects which controlers to train (e.g. actor, critic, memory)
+        In general, backward is a wrapper around train_controllers: It selects which controlers to train (e.g. actor, critic, memory)
         """
         raise NotImplementedError()
 
-    def fit_controllers(self, **kwargs):
+    def train_controllers(self, **kwargs):
         """
         Train the agent controllers
 
