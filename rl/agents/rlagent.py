@@ -179,6 +179,7 @@ class RLAgent(Agent):
         self.observation_1 = None
         self.action = None
         self.step_summaries = None
+        self.step_summaries_post = None
 
         # Run_init hooks
         self.hooks.run_init()
@@ -224,6 +225,7 @@ class RLAgent(Agent):
             self.episode_step += 1
             self.reward = 0.
             self.step_summaries = []
+            self.step_summaries_post = []
             accumulated_info = {}
 
             # Run a single step.
@@ -368,6 +370,7 @@ class RLAgent(Agent):
                 self.training_step += 1
             self.episode_step += 1
             self.step_summaries = []
+            self.step_summaries_post = []
 
             # Finish the step
             if (epoch % episode_length == 0):

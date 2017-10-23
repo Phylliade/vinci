@@ -480,19 +480,19 @@ class DDPGAgent(RLAgent):
             batch = self.memory.sample(self.batch_size)
 
             summaries = []
-            post_summaries = []
+            summaries_post = []
 
             # Train networks
             if train_critic:
                 summaries_critic, summaries_post_critic = self.train_critic(batch)
                 summaries += summaries_critic
-                post_summaries += summaries_post_critic
+                summaries_post += summaries_post_critic
 
             if train_actor:
                 summaries_actor, summaries_post_actor = self.train_actor(
                     batch, can_reset_actor=can_reset_actor)
                 summaries += summaries_actor
-                post_summaries += summaries_post_actor
+                summaries_post += summaries_post_actor
 
             # Update target networks
             if hard_update_target_actor:
@@ -505,6 +505,7 @@ class DDPGAgent(RLAgent):
                 self.session.run(self.target_critic_train_op)
 
             self.step_summaries += summaries
+            self.step_summaries_post += summaries_post
 
     def train_critic(self, batch, sgd_iterations=1):
         """Fit the critic network"""
