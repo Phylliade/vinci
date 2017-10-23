@@ -86,9 +86,6 @@ class Experiment(PersistentExperiment):
             self.session = tf.Session(config=tf_config)
             K.set_session(self.session)
 
-            # # Seed
-
-
         # Seed
         if seed is not None:
             import random

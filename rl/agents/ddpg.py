@@ -147,12 +147,22 @@ class DDPGAgent(RLAgent):
             value for (key, value) in self.summary_variables.items()
             if (key.startswith("critic/") or key.startswith("target_critic/"))
         ]
+        # Critic post (run after training)
+        self.critic_summaries_post = [
+            value for (key, value) in self.summary_variables.items()
+            if (key.startswith("critic_post/") or key.startswith("target_critic_post/"))
+        ]
         # Actor
         # No need to collect the actor's loss, since we already have actor/objective
         self.actor_summaries = [
             value for (key, value) in self.summary_variables.items()
             if (key.startswith("actor/") and not key == ("actor/loss")
                 or key.startswith("target_actor/"))
+        ]
+        # Actor post
+        self.actor_summaries_post = [
+            value for (key, value) in self.summary_variables.items()
+            if (key.startswith("actor_post/") or key.startswith("target_actor_post/"))
         ]
 
         # Initialize the remaining variables
@@ -470,16 +480,19 @@ class DDPGAgent(RLAgent):
             batch = self.memory.sample(self.batch_size)
 
             summaries = []
+            post_summaries = []
 
             # Train networks
             if train_critic:
-                summaries_critic = self.train_critic(batch)
+                summaries_critic, summaries_post_critic = self.train_critic(batch)
                 summaries += summaries_critic
+                post_summaries += summaries_post_critic
 
             if train_actor:
-                summaries_actor = self.train_actor(
+                summaries_actor, summaries_post_actor = self.train_actor(
                     batch, can_reset_actor=can_reset_actor)
                 summaries += summaries_actor
+                post_summaries += summaries_post_actor
 
             # Update target networks
             if hard_update_target_actor:
@@ -545,7 +558,11 @@ class DDPGAgent(RLAgent):
             # FIXME: The intermediate gradient values are not captured
             self.session.run(self.critic_train_op, feed_dict=feed_dict)
 
-        return (summaries)
+            # Collect summaries and metrics after training the critic
+        summaries_post = self.session.run(
+            self.critic_summaries_post, feed_dict=feed_dict)
+
+        return (summaries, summaries_post)
 
     def train_actor(self, batch, sgd_iterations=1, can_reset_actor=False):
         """Fit the actor network"""
@@ -565,13 +582,17 @@ class DDPGAgent(RLAgent):
             # FIXME: The intermediate gradient values are not captured
             self.session.run(self.actor_train_op, feed_dict=feed_dict)
 
+        # Collect metrics before training the actor
+        summaries_post = self.session.run(self.actor_summaries_post,
+            feed_dict=feed_dict)
+
         if can_reset_actor:
             # Reset the actor if the gradient is flat
             if self.metrics["actor/gradient_norm"] <= self.actor_reset_threshold:
                 # TODO: Use a gradient on a rolling window: multiple steps (and even multiple episodes)
                 self.restore_checkpoint(actor=True, critic=False)
 
-        return (summaries)
+        return (summaries, summaries_post)
 
     def checkpoint(self):
         """Save the weights"""

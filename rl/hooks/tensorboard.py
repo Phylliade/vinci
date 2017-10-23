@@ -10,7 +10,7 @@ class TensorboardHook(Hook):
 
     def step_end(self):
         # Step summaries
-        for summary in list(self.agent.step_summaries):
+        for summary in list(self.agent.step_summaries) + list(self.agent.step_summaries_post): 
             # FIXME: Use only one summary
             self.summary_writer.add_summary(summary, self.agent.step)
 
