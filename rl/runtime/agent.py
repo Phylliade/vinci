@@ -5,13 +5,14 @@ from rl.hooks.container import AgentHooksContainer
 
 class Agent(object):
     """Abstract class for an agent"""
-    def __init__(self, experiment=None, hooks=None, name=None):
+    def __init__(self, experiment, hooks=None, name=None):
         # Dict to store useful agent attributes
         self.attributes = {"default": True}
 
         if experiment is None:
             # Create the experiment ourselves but we are losing the possibility to use it as a context manager
-            self.experiment = DefaultExperiment()
+            # self.experiment = DefaultExperiment()
+            raise(ValueError("experiment is not provided, please provide an experiment"))
         else:
             self.experiment = experiment
 

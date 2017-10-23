@@ -45,7 +45,7 @@ class PersistentExperiment(object):
 
 
 class Experiment(PersistentExperiment):
-    def __init__(self, experiment_id, experiments=None, hooks=None, use_tf=True, tf_config=None, analytics=False, **kwargs):
+    def __init__(self, experiment_id, experiments=None, hooks=None, use_tf=True, tf_config=None, analytics=False, seed=None, **kwargs):
         super(Experiment, self).__init__(experiment_id, **kwargs)
 
         self.count = 1
@@ -85,6 +85,19 @@ class Experiment(PersistentExperiment):
             # self.session = K.get_session()
             self.session = tf.Session(config=tf_config)
             K.set_session(self.session)
+
+            # # Seed
+
+
+        # Seed
+        if seed is not None:
+            import random
+            import numpy.random
+            print_info("Using seed {}".format(seed))
+            random.seed(seed)
+            numpy.random.seed(seed)
+            if use_tf:
+                tf.set_random_seed(seed)
 
     def __enter__(self):
         print_info("Beginning experiment {}".format(self.id))
