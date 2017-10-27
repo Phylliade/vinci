@@ -16,10 +16,6 @@ from rl.utils.printer import print_warning
 USE_KERAS_INFERENCE = False
 
 
-def mean_q(y_true, y_pred):
-    return K.mean(K.max(y_pred, axis=-1))
-
-
 class DDPGAgent(RLAgent):
     """
     Deep Deterministic Policy Gradient Agent as defined in https://arxiv.org/abs/1509.02971.
