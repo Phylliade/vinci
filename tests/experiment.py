@@ -39,7 +39,7 @@ with my_expe:
         agent.train(
             env=env,
             nb_episodes=1,
-            visualize=False,
+            render=False,
             verbose=2,
             nb_max_episode_steps=200,
-            plots=False)
+            plots=True)

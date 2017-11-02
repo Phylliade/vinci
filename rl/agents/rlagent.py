@@ -67,7 +67,7 @@ class RLAgent(Agent):
         :param int action_repetition: Number of times the action is repeated for each step.
         :param callbacks:
         :param int verbose: 0 for no logging, 1 for interval logging (compare `log_interval`), 2 for episode logging
-        :param bool visualize: Render the environment in realtime. This slows down by a big factor (up to 100) the function.
+        :param bool render: Render the environment in realtime. This slows down by a big factor (up to 100) the function.
         :param nb_max_start_steps:
         :param start_step_policy: (`lambda observation: action`): The policy to follow if `nb_max_start_steps` > 0. If set to `None`, a random action is performed.
         :param log_interval:
