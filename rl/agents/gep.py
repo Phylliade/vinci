@@ -28,7 +28,7 @@ class GEPAgent(Agent):
              noise_intensity=0.3,
              render=False,
              noisy_policy_parameters=True,
-             verbose=False):
+             verbosity=False):
         # Configure hook variables
         self.training = train
         if noisy_policy_parameters:
@@ -62,7 +62,7 @@ class GEPAgent(Agent):
             if episodic_goal:
                 self.goal = self.im_model.sample()
 
-            if verbose:
+            if verbosity:
                 print("Running on goal: {}".format(self.goal))
 
             # Invert it
@@ -78,7 +78,7 @@ class GEPAgent(Agent):
                  render=render,
                  hooks=self.hooks)
 
-            if verbose:
+            if verbosity:
                 print("achievement: {}".format(self.achievement))
 
             # Backward

@@ -12,7 +12,7 @@ from rl.util import *
 class CEMAgent(RLAgent):
     """Write me
     """
-    def __init__(self, model, nb_actions, memory, batch_size=50, nb_steps_warmup=1000,
+    def __init__(self, model, nb_actions, memory, batch_size=50, steps_warmup=1000,
                  train_interval=50, elite_frac=0.05, memory_interval=1, theta_init=None,
                  noise_decay_const=0.0, noise_ampl=0.0, **kwargs):
         super(CEMAgent, self).__init__(**kwargs)
@@ -22,7 +22,7 @@ class CEMAgent(RLAgent):
         self.batch_size = batch_size
         self.elite_frac = elite_frac
         self.num_best = int(self.batch_size * self.elite_frac)
-        self.nb_steps_warmup = nb_steps_warmup
+        self.steps_warmup = steps_warmup
         self.train_interval = train_interval
         self.memory_interval = memory_interval
 
@@ -146,7 +146,7 @@ class CEMAgent(RLAgent):
             params = self.get_weights_flat(self.model.get_weights())
             self.memory.finalize_episode(params)
 
-            if self.step > self.nb_steps_warmup and self.episode % self.train_interval == 0:
+            if self.step > self.steps_warmup and self.episode % self.train_interval == 0:
                 params, reward_totals = self.memory.sample(self.batch_size)
                 best_idx = np.argsort(np.array(reward_totals))[-self.num_best:]
                 best = np.vstack([params[i] for i in best_idx])

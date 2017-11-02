@@ -20,7 +20,6 @@ class RLAgent(Agent):
 
     def __init__(self, **kwargs):
         super(RLAgent, self).__init__(**kwargs)
-
         # Collected metrics
         self.metrics = {}
         # Internal TF variables
@@ -35,14 +34,13 @@ class RLAgent(Agent):
         raise NotImplementedError()
 
     def _run(self,
-             env,
-             nb_steps=None,
-             nb_episodes=None,
+             steps=None,
+             episodes=None,
              train=True,
              exploration=True,
              action_repetition=1,
              callbacks=None,
-             verbose=1,
+             verbosity=2,
              render=False,
              nb_max_start_steps=0,
              start_step_policy=None,
@@ -61,13 +59,13 @@ class RLAgent(Agent):
         * Maximal number of steps
         * Maximal number of episodes
 
-        :param nb_steps: Number of steps before termination.
-        :param nb_episodes: Number of episodes before termination.
+        :param steps: Number of steps before termination.
+        :param episodes: Number of episodes before termination.
         :param bool training: Whether to train or test the agent. Not available for the :func:`fit` and :func:`test` methods.
         :param int action_repetition: Number of times the action is repeated for each step.
         :param callbacks:
-        :param int verbose: 0 for no logging, 1 for interval logging (compare `log_interval`), 2 for episode logging
-        :param bool render: Render the environment in realtime. This slows down by a big factor (up to 100) the function.
+        :param int verbosity: 0 for no logging, 1 for interval logging (compare `log_interval`), 2 for episode logging
+        :param bool render: Render the self.environment in realtime. This slows down by a big factor (up to 100) the function.
         :param nb_max_start_steps:
         :param start_step_policy: (`lambda observation: action`): The policy to follow if `nb_max_start_steps` > 0. If set to `None`, a random action is performed.
         :param log_interval:
@@ -83,18 +81,19 @@ class RLAgent(Agent):
             raise ValueError('action_repetition must be >= 1, is {}'.format(
                 action_repetition))
 
-        # Process the different cases when either nb_steps or nb_episodes are specified
-        if (nb_steps is None and nb_episodes is None):
+        # Process the different cases when either steps or episodes are specified
+        if (steps is None and episodes is None):
             raise (ValueError(
-                "Please specify one (and only one) of nb_steps or nb_episodes")
+                "No duration specified: Please specify one of steps or episodes")
                    )
-        elif (nb_steps is not None and nb_episodes is None):
+        elif (steps is not None and episodes is None):
             termination_criterion = STEPS_TERMINATION
-        elif (nb_steps is None and nb_episodes is not None):
+        elif (steps is None and episodes is not None):
             termination_criterion = EPISODES_TERMINATION
-        elif (nb_steps is not None and nb_episodes is not None):
+        elif (steps is not None and episodes is not None):
+            print(steps, episodes)
             raise (ValueError(
-                "Please specify one (and only one) of nb_steps or nb_episodes")
+                "Please specify one (and only one) of steps or episodes")
                    )
 
         self.training = train
@@ -105,12 +104,12 @@ class RLAgent(Agent):
         if callbacks is None:
             callbacks = []
         if self.training:
-            if verbose == 1:
+            if verbosity == 1:
                 callbacks += [TrainIntervalLogger(interval=log_interval)]
-            elif verbose > 1:
+            elif verbosity > 1:
                 callbacks += [TrainEpisodeLogger()]
         else:
-            if verbose >= 1:
+            if verbosity >= 1:
                 callbacks += [TestLogger()]
         callbacks = [] if not callbacks else callbacks[:]
         if render:
@@ -122,15 +121,15 @@ class RLAgent(Agent):
             callbacks.set_model(self)
         else:
             callbacks._set_model(self)
-        callbacks._set_env(env)
+        callbacks._set_env(self.env)
         if termination_criterion == STEPS_TERMINATION:
             params = {
-                'nb_steps': nb_steps,
+                'steps': steps,
             }
         elif termination_criterion == EPISODES_TERMINATION:
             params = {
-                'nb_episodes': nb_episodes,
-                'nb_steps': 1,
+                'episodes': episodes,
+                'steps': 1,
             }
         if hasattr(callbacks, 'set_params'):
             callbacks.set_params(params)
@@ -153,12 +152,12 @@ class RLAgent(Agent):
         if termination_criterion == STEPS_TERMINATION:
 
             def termination():
-                return (self.step - start_step >= nb_steps)
+                return (self.step - start_step >= steps)
         elif termination_criterion == EPISODES_TERMINATION:
 
             def termination():
-                return ((self.episode - start_episode >= nb_episodes and
-                         self.done))
+                return ((self.episode - start_episode >= episodes
+                         and self.done))
 
         if self.training:
             self._on_train_begin()
@@ -197,16 +196,16 @@ class RLAgent(Agent):
                 self.episode_step = 0
                 callbacks.on_episode_begin(self.episode)
 
-                # Obtain the initial observation by resetting the environment.
+                # Obtain the initial observation by resetting the self.environment.
                 self.reset_states()
-                observation_0 = deepcopy(env.reset())
+                observation_0 = deepcopy(self.env.reset())
                 assert observation_0 is not None
 
                 # Perform random steps at beginning of episode and do not record them into the experience.
                 # This slightly changes the start position between games.
                 if nb_max_start_steps != 0:
                     observation_0 = self._perform_random_steps(
-                        nb_max_start_steps, start_step_policy, env,
+                        nb_max_start_steps, start_step_policy, self.env,
                         observation_0, callbacks)
 
             else:
@@ -241,7 +240,8 @@ class RLAgent(Agent):
             # With repetition, if necesarry
             for _ in range(action_repetition):
                 callbacks.on_action_begin(self.action)
-                self.observation_1, r, self.done, info = env.step(self.action)
+                self.observation_1, r, self.done, info = self.env.step(
+                    self.action)
                 # observation_1 = deepcopy(observation_1)
 
                 for key, value in info.items():
@@ -254,7 +254,7 @@ class RLAgent(Agent):
 
                 self.reward += r
 
-                # Set episode as finished if the environment has terminated
+                # Set episode as finished if the self.environment has terminated
                 if self.done:
                     break
 
@@ -294,7 +294,7 @@ class RLAgent(Agent):
                 episode_logs = {
                     'episode_reward': np.float_(self.episode_reward),
                     'nb_episode_steps': np.float_(self.episode_step),
-                    'nb_steps': np.float_(self.step),
+                    'steps': np.float_(self.step),
                 }
                 callbacks.on_episode_end(self.episode, logs=episode_logs)
                 self.hooks.episode_end()
@@ -318,15 +318,15 @@ class RLAgent(Agent):
             else:
                 action = start_step_policy(observation)
             callbacks.on_action_begin(action)
-            observation, reward, done, info = env.step(action)
+            observation, reward, done, info = self.env.step(action)
             observation = deepcopy(observation)
             callbacks.on_action_end(action)
 
             if done:
                 warnings.warn(
-                    'Env ended before {} random steps could be performed at the start. You should probably lower the `nb_max_start_steps` parameter.'.
+                    'self.env ended before {} random steps could be performed at the start. You should probably lower the `nb_max_start_steps` parameter.'.
                     format(nb_random_start_steps))
-                observation = deepcopy(env.reset())
+                observation = deepcopy(self.env.reset())
                 break
         return (observation)
 
@@ -335,7 +335,7 @@ class RLAgent(Agent):
                       episode_length=200,
                       plots=False,
                       tensorboard=False,
-                      verbose=True,
+                      verbosity=True,
                       **kwargs):
         """Train the networks in offline mode"""
 
@@ -378,7 +378,7 @@ class RLAgent(Agent):
 
             # Post step
             # Train the networks
-            if verbose:
+            if verbosity:
                 print_status(
                     "Training epoch: {}/{} ".format(epoch, steps),
                     terminal=(epoch == steps))
@@ -399,7 +399,7 @@ class RLAgent(Agent):
 
     def forward(self, observation):
         """
-        Takes the an observation from the environment and returns the action to be taken next.
+        Takes the an observation from the self.environment and returns the action to be taken next.
         If the policy is implemented by a neural network, this corresponds to a forward (inference) pass.
 
         :param observation: The observation from which we want an action

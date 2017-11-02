@@ -24,7 +24,7 @@ class Policy(object):
 
 
 class LinearAnnealedPolicy(Policy):
-    def __init__(self, inner_policy, attr, value_max, value_min, value_test, nb_steps):
+    def __init__(self, inner_policy, attr, value_max, value_min, value_test, steps):
         if not hasattr(inner_policy, attr):
             raise ValueError('Policy "{}" does not have attribute "{}".'.format(attr))
 
@@ -35,12 +35,12 @@ class LinearAnnealedPolicy(Policy):
         self.value_max = value_max
         self.value_min = value_min
         self.value_test = value_test
-        self.nb_steps = nb_steps
+        self.steps = steps
 
     def get_current_value(self):
         if self.agent.training:
             # Linear annealed: f(x) = ax + b.
-            a = -float(self.value_max - self.value_min) / float(self.nb_steps)
+            a = -float(self.value_max - self.value_min) / float(self.steps)
             b = float(self.value_max)
             value = max(self.value_min, a * float(self.agent.step) + b)
         else:
@@ -65,7 +65,7 @@ class LinearAnnealedPolicy(Policy):
         config['value_max'] = self.value_max
         config['value_min'] = self.value_min
         config['value_test'] = self.value_test
-        config['nb_steps'] = self.nb_steps
+        config['steps'] = self.steps
         config['inner_policy'] = get_object_config(self.inner_policy)
         return config
 

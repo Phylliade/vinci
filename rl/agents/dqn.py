@@ -17,7 +17,7 @@ def mean_q(y_true, y_pred):
 class AbstractDQNAgent(Agent):
     """Write me
     """
-    def __init__(self, nb_actions, memory, gamma=.99, batch_size=32, nb_steps_warmup=1000,
+    def __init__(self, nb_actions, memory, gamma=.99, batch_size=32, steps_warmup=1000,
                  train_interval=1, memory_interval=1, target_model_update=10000,
                  delta_range=None, delta_clip=np.inf, custom_model_objects={}, **kwargs):
         super(AbstractDQNAgent, self).__init__(**kwargs)
@@ -40,7 +40,7 @@ class AbstractDQNAgent(Agent):
         self.nb_actions = nb_actions
         self.gamma = gamma
         self.batch_size = batch_size
-        self.nb_steps_warmup = nb_steps_warmup
+        self.steps_warmup = steps_warmup
         self.train_interval = train_interval
         self.memory_interval = memory_interval
         self.target_model_update = target_model_update
@@ -75,7 +75,7 @@ class AbstractDQNAgent(Agent):
             'nb_actions': self.nb_actions,
             'gamma': self.gamma,
             'batch_size': self.batch_size,
-            'nb_steps_warmup': self.nb_steps_warmup,
+            'steps_warmup': self.steps_warmup,
             'train_interval': self.train_interval,
             'memory_interval': self.memory_interval,
             'target_model_update': self.target_model_update,
@@ -241,7 +241,7 @@ class DQNAgent(AbstractDQNAgent):
             return metrics
 
         # Train the network on a single stochastic batch.
-        if self.step > self.nb_steps_warmup and self.step % self.train_interval == 0:
+        if self.step > self.steps_warmup and self.step % self.train_interval == 0:
             experiences = self.memory.sample(self.batch_size)
             assert len(experiences) == self.batch_size
 
@@ -659,7 +659,7 @@ class NAFAgent(AbstractDQNAgent):
             return metrics
 
         # Train the network on a single stochastic batch.
-        if self.step > self.nb_steps_warmup and self.step % self.train_interval == 0:
+        if self.step > self.steps_warmup and self.step % self.train_interval == 0:
             experiences = self.memory.sample(self.batch_size)
             assert len(experiences) == self.batch_size
 

@@ -17,7 +17,7 @@ from rl.keras_future import Model
 class SARSAAgent(Agent):
     """Write me
     """
-    def __init__(self, model, nb_actions, policy=None, test_policy=None, gamma=.99, nb_steps_warmup=10,
+    def __init__(self, model, nb_actions, policy=None, test_policy=None, gamma=.99, steps_warmup=10,
                  train_interval=1, delta_clip=np.inf, *args, **kwargs):
         super(SarsaAgent, self).__init__(*args, **kwargs)
 
@@ -33,7 +33,7 @@ class SARSAAgent(Agent):
         self.policy = policy
         self.test_policy = test_policy
         self.gamma = gamma
-        self.nb_steps_warmup = nb_steps_warmup
+        self.steps_warmup = steps_warmup
         self.train_interval = train_interval
 
         self.delta_clip = delta_clip
@@ -63,7 +63,7 @@ class SARSAAgent(Agent):
         config = super(SarsaAgent, self).get_config()
         config['nb_actions'] = self.nb_actions
         config['gamma'] = self.gamma
-        config['nb_steps_warmup'] = self.nb_steps_warmup
+        config['steps_warmup'] = self.steps_warmup
         config['train_interval'] = self.train_interval
         config['delta_clip'] = self.delta_clip
         config['model'] = get_object_config(self.model)
@@ -138,7 +138,7 @@ class SARSAAgent(Agent):
             return metrics
 
         # Train the network on a single stochastic batch.
-        if self.step > self.nb_steps_warmup and self.step % self.train_interval == 0:
+        if self.step > self.steps_warmup and self.step % self.train_interval == 0:
             # Start by extracting the necessary parameters (we use a vectorized implementation).
             self.rewards.append(reward)
             if len(self.observations) < 2:

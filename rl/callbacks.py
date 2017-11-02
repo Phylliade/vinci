@@ -93,14 +93,14 @@ class CallbackList(KerasCallbackList):
 
 class TestLogger(Callback):
     def on_train_begin(self, logs):
-        print('Testing for {} episodes ...'.format(self.params['nb_episodes']))
+        print('Testing for {} episodes ...'.format(self.params['episodes']))
 
     def on_episode_end(self, episode, logs):
         template = 'Episode {0}: reward: {1:.3f}, steps: {2}'
         variables = [
             episode,
             logs['episode_reward'],
-            logs['nb_steps'],
+            logs['steps'],
         ]
         print(template.format(*variables))
 
@@ -121,7 +121,7 @@ class TrainEpisodeLogger(Callback):
     def on_train_begin(self, logs):
         self.train_start = timeit.default_timer()
         self.metrics_names = self.model.metrics_names
-        print('Training for {} steps ...'.format(self.params['nb_steps']))
+        print('Training for {} steps ...'.format(self.params['steps']))
 
     def on_train_end(self, logs):
         duration = timeit.default_timer() - self.train_start
@@ -158,15 +158,15 @@ class TrainEpisodeLogger(Callback):
         metrics_text = metrics_template.format(*metrics_variables)
 
         nb_step_digits = str(
-            int(np.ceil(np.log10(self.params['nb_steps']))))
-        template = "{step: " + nb_step_digits + "d}/{nb_steps}: "
+            int(np.ceil(np.log10(self.params['steps']))))
+        template = "{step: " + nb_step_digits + "d}/{steps}: "
         template += "\033[32mepisode: {episode}\033[0m, duration: {duration:.3f}s, "
         template += "episode steps: {episode_steps}, steps per second: {sps:.0f}, "
         template += "\033[32mepisode reward: {episode_reward:.3f}\033[0m, mean reward: {reward_mean:.3f} [{reward_min:.3f}, {reward_max:.3f}], "
         template += "mean action: {action_mean:.3f} [{action_min:.3f}, {action_max:.3f}], mean observation: {obs_mean:.3f} [{obs_min:.3f}, {obs_max:.3f}], {metrics}"
         variables = {
             'step': self.step,
-            'nb_steps': self.params['nb_steps'],
+            'steps': self.params['steps'],
             'episode': episode,
             'duration': duration,
             'episode_steps': episode_steps,
@@ -218,7 +218,7 @@ class TrainIntervalLogger(Callback):
     def on_train_begin(self, logs):
         self.train_start = timeit.default_timer()
         self.metrics_names = self.model.metrics_names
-        print('Training for {} steps ...'.format(self.params['nb_steps']))
+        print('Training for {} steps ...'.format(self.params['steps']))
 
     def on_train_end(self, logs):
         duration = timeit.default_timer() - self.train_start
@@ -352,11 +352,11 @@ class Visualizer(Callback):
 
 
 class ModelIntervalCheckpoint(Callback):
-    def __init__(self, filepath, interval, verbose=0):
+    def __init__(self, filepath, interval, verbosity=0):
         super(ModelIntervalCheckpoint, self).__init__()
         self.filepath = filepath
         self.interval = interval
-        self.verbose = verbose
+        self.verbosity = verbosity
         self.total_steps = 0
 
     def on_step_end(self, step, logs={}):
@@ -366,7 +366,7 @@ class ModelIntervalCheckpoint(Callback):
             return
 
         filepath = self.filepath.format(step=self.total_steps, **logs)
-        if self.verbose > 0:
+        if self.verbosity > 0:
             print('Step {}: saving model to {}'.format(self.total_steps,
                                                        filepath))
         self.model.save_weights(filepath, overwrite=True)

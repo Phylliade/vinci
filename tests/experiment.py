@@ -36,10 +36,4 @@ with my_expe:
         )
         agent.compile()
 
-        agent.train(
-            env=env,
-            nb_episodes=1,
-            render=False,
-            verbose=2,
-            nb_max_episode_steps=200,
-            plots=True)
+        agent.train(episodes=1)

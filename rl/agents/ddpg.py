@@ -41,7 +41,6 @@ class DDPGAgent(RLAgent):
             self,
             actor,
             critic,
-            env,
             memory,
             gamma=.99,
             batch_size=32,
@@ -50,6 +49,8 @@ class DDPGAgent(RLAgent):
             gradient_clip=np.inf,
             random_process=None,
             custom_model_objects=None,
+            warmup_actor_steps=200,
+            warmup_critic_steps=200,
             invert_gradients=False,
             gradient_inverter_min=-1.,
             gradient_inverter_max=1.,
@@ -77,17 +78,18 @@ class DDPGAgent(RLAgent):
         super(DDPGAgent, self).__init__(name="ddpg", **kwargs)
 
         # Get placeholders
-        self.variables["state"] = env.state
-        self.variables["action"] = env.action
+        self.variables["state"] = self.env.state
+        self.variables["action"] = self.env.action
 
         # Parameters.
-        self.env = env
-        self.nb_actions = env.action_space.dim
-        self.actions_low = env.action_space.low
-        self.actions_high = env.action_space.high
+        self.nb_actions = self.env.action_space.dim
+        self.actions_low = self.env.action_space.low
+        self.actions_high = self.env.action_space.high
         self.random_process = random_process
         self.gradient_clip = gradient_clip
         self.gamma = gamma
+        self.warmup_actor_steps = warmup_actor_steps
+        self.warmup_critic_steps = warmup_critic_steps
         (self.target_critic_update, self.target_critic_hard_updates) = process_hard_update_variable(
             target_critic_update)
         (self.target_actor_update, self.target_actor_hard_updates) = process_hard_update_variable(
@@ -377,7 +379,7 @@ class DDPGAgent(RLAgent):
 
         return (action)
 
-    def backward(self, warmup_actor=200, warmup_critic=200):
+    def backward(self):
         """
         Backward method of the DDPG agent
         """
@@ -395,9 +397,9 @@ class DDPGAgent(RLAgent):
         if self.training_step % self.train_interval == 0:
             # If warm up is over:
             # Update critic
-            train_critic = (self.training_step > warmup_critic)
+            train_critic = (self.training_step > self.warmup_critic_steps)
             # Update actor
-            train_actor = (self.training_step > warmup_actor)
+            train_actor = (self.training_step > self.warmup_actor_steps)
 
             self._backward(train_actor=train_actor, train_critic=train_critic)
 

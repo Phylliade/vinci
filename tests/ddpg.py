@@ -38,8 +38,8 @@ with experiment:
 
     agent.train(
         env=env,
-        nb_episodes=1,
-        render=False,
-        verbose=2,
-        nb_max_episode_steps=200,
+        episodes=10,
+        render=True,
+        verbosity=2,
+        nb_max_episode_steps=1000,
         plots=False)
