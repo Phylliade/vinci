@@ -153,12 +153,11 @@ class RLAgent(Agent):
         if termination_criterion == STEPS_TERMINATION:
 
             def termination():
-                return (self.step - start_step >= steps)
+                return ((self.step - start_step >= steps) or self.abort)
         elif termination_criterion == EPISODES_TERMINATION:
 
             def termination():
-                return ((self.episode - start_episode >= episodes
-                         and self.done))
+                return (self.episode - start_episode >= episodes or self.done or self.abort)
 
         if self.training:
             self._on_train_begin()
@@ -171,6 +170,7 @@ class RLAgent(Agent):
         self.run_number += 1
         self.run_done = False
         self.done = True
+        self.abort = False
         did_abort = False
         # Define these for clarification, not mandatory:
         # Where observation: Observation before the step

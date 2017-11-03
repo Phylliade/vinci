@@ -417,9 +417,11 @@ class DDPGAgent(RLAgent):
         if self.training_step % self.train_interval == 0:
             # If warm up is over:
             # Update critic
-            train_critic = (self.training_step > self.warmup_critic_steps)
+            self.warmingup_critic = (self.training_step <= self.warmup_critic_steps)
+            train_critic = (not self.warmingup_critic)
             # Update actor
-            train_actor = (self.training_step > self.warmup_actor_steps)
+            self.warmingup_actor = self.training_step <= self.warmup_actor_steps
+            train_actor = (not self.warmingup_actor)
 
             self._backward(train_actor=train_actor, train_critic=train_critic)
 
@@ -570,8 +572,8 @@ class DDPGAgent(RLAgent):
         }
 
         # Collect summaries and metrics before training the critic
-        summaries = self.session.run(
-            self.critic_summaries, feed_dict=feed_dict)
+        self.metrics["critic/gradient_norm"], summaries = self.session.run(
+            [self.variables["critic/gradient_norm"], self.critic_summaries], feed_dict=feed_dict)
 
         # Train the critic
         for _ in range(sgd_iterations):
