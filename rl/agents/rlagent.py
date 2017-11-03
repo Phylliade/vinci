@@ -46,17 +46,15 @@ class RLAgent(Agent):
              steps=None,
              episodes=None,
              train=True,
-             exploration=True,
-             action_repetition=1,
-             callbacks=None,
-             verbosity=2,
              render=False,
-             nb_max_start_steps=0,
-             start_step_policy=None,
-             log_interval=10000,
-             nb_max_episode_steps=None,
+             exploration=True,
              plots=False,
              tensorboard=False,
+             callbacks=None,
+             verbosity=2,
+             action_repetition=1,
+             nb_max_episode_steps=None,
+             log_interval=10000,
              **kwargs):
         """
         Run steps until termination.
@@ -74,8 +72,6 @@ class RLAgent(Agent):
         :param callbacks:
         :param int verbosity: 0 for no logging, 1 for interval logging (compare `log_interval`), 2 for episode logging
         :param bool render: Render the self.environment in realtime. This slows down by a big factor (up to 100) the function.
-        :param nb_max_start_steps:
-        :param start_step_policy: (`lambda observation: action`): The policy to follow if `nb_max_start_steps` > 0. If set to `None`, a random action is performed.
         :param log_interval:
         :param reward_scaling:
         :param plots: Plot metrics during training.
@@ -275,6 +271,10 @@ class RLAgent(Agent):
 
             # Post step: training, callbacks and hooks
             # Train the algorithm
+            if self.normalize_actions:
+                self.action_processed = normalize(self.action)
+            else:
+                self.action_processed = self.action
             self.backward()
 
             # step_end Hooks
