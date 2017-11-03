@@ -410,7 +410,7 @@ class DDPGAgent(RLAgent):
         # Store most recent experience in memory.
         if self.training_step % self.memory_interval == 0:
             self.memory.append(
-                Experience(self.observation, self.action_processed,
+                Experience(self.observation, self.action,
                            self.reward, self.observation_1, self.done))
 
         # Train the networks

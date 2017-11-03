@@ -21,11 +21,9 @@ class RLAgent(Agent):
 
     def __init__(self,
                  normalize_observations=False,
-                 normalize_actions=False,
                  reward_scaling=1.,
                  **kwargs):
         super(RLAgent, self).__init__(**kwargs)
-        self.normalize_actions = normalize_actions
         self.normalize_observations = normalize_observations
         self.reward_scaling = reward_scaling
 
@@ -271,10 +269,6 @@ class RLAgent(Agent):
 
             # Post step: training, callbacks and hooks
             # Train the algorithm
-            if self.normalize_actions:
-                self.action_processed = normalize(self.action)
-            else:
-                self.action_processed = self.action
             self.backward()
 
             # step_end Hooks
