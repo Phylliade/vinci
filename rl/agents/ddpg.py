@@ -46,7 +46,7 @@ class DDPGAgent(RLAgent):
             batch_size=32,
             train_interval=1,
             memory_interval=1,
-            gradient_clip=np.inf,
+            gradient_clip=100,
             random_process=None,
             custom_model_objects=None,
             warmup_actor_steps=200,
@@ -56,8 +56,10 @@ class DDPGAgent(RLAgent):
             gradient_inverter_max=1.,
             actor_reset_threshold=0.3,
             reset_controlers=False,
-            target_critic_update=1e-3,
-            target_actor_update=1e-3,
+            actor_learning_rate=1e-3,
+            critic_learning_rate=1e-4,
+            target_critic_update=0.01,
+            target_actor_update=0.01,
             **kwargs):
 
         if custom_model_objects is None:
@@ -90,6 +92,8 @@ class DDPGAgent(RLAgent):
         self.gamma = gamma
         self.warmup_actor_steps = warmup_actor_steps
         self.warmup_critic_steps = warmup_critic_steps
+        self.critic_learning_rate = critic_learning_rate
+        self.actor_learning_rate = actor_learning_rate
         (self.target_critic_update, self.target_critic_hard_updates) = process_hard_update_variable(
             target_critic_update)
         (self.target_actor_update, self.target_actor_hard_updates) = process_hard_update_variable(
@@ -200,7 +204,7 @@ class DDPGAgent(RLAgent):
                 self.target_actor_update)
 
         # Actor optimizer
-        actor_optimizer = tf.train.AdamOptimizer()
+        actor_optimizer = tf.train.AdamOptimizer(learning_rate=self.actor_learning_rate)
         # Be careful to negate the gradient
         # Since the optimizer wants to minimize the value
         self.variables["actor/loss"] = -tf.reduce_mean(
@@ -260,7 +264,7 @@ class DDPGAgent(RLAgent):
         self.critic.compile(optimizer='sgd', loss='mse')
 
         # Compile the critic optimizer
-        critic_optimizer = tf.train.AdamOptimizer()
+        critic_optimizer = tf.train.AdamOptimizer(learning_rate=self.critic_learning_rate)
         # NOT to be mistaken with the target_critic!
         self.critic_target = tf.placeholder(dtype=tf.float32, shape=(None, 1))
         # Clip the critic gradient using the huber loss
