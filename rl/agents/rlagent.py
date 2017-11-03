@@ -8,6 +8,7 @@ from keras.callbacks import History
 from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
 from rl.utils.printer import print_status
 from rl.runtime.agent import Agent
+from rl.utils.numerics import normalize
 # Other hooks are imported on the fly when required
 
 # Global variables
@@ -18,8 +19,16 @@ EPISODES_TERMINATION = 2
 class RLAgent(Agent):
     """Generic agent class"""
 
-    def __init__(self, **kwargs):
+    def __init__(self,
+                 normalize_observations=False,
+                 normalize_actions=False,
+                 reward_scaling=1.,
+                 **kwargs):
         super(RLAgent, self).__init__(**kwargs)
+        self.normalize_actions = normalize_actions
+        self.normalize_observations = normalize_observations
+        self.reward_scaling = reward_scaling
+
         # Collected metrics
         self.metrics = {}
         # Internal TF variables
@@ -46,7 +55,6 @@ class RLAgent(Agent):
              start_step_policy=None,
              log_interval=10000,
              nb_max_episode_steps=None,
-             reward_scaling=1.,
              plots=False,
              tensorboard=False,
              **kwargs):
@@ -84,8 +92,8 @@ class RLAgent(Agent):
         # Process the different cases when either steps or episodes are specified
         if (steps is None and episodes is None):
             raise (ValueError(
-                "No duration specified: Please specify one of steps or episodes")
-                   )
+                "No duration specified: Please specify one of steps or episodes"
+            ))
         elif (steps is not None and episodes is None):
             termination_criterion = STEPS_TERMINATION
         elif (steps is None and episodes is not None):
@@ -93,8 +101,7 @@ class RLAgent(Agent):
         elif (steps is not None and episodes is not None):
             print(steps, episodes)
             raise (ValueError(
-                "Please specify one (and only one) of steps or episodes")
-                   )
+                "Please specify one (and only one) of steps or episodes"))
 
         self.training = train
         # We explore only if the flag is selected and we are in train mode
@@ -199,14 +206,9 @@ class RLAgent(Agent):
                 # Obtain the initial observation by resetting the self.environment.
                 self.reset_states()
                 observation_0 = deepcopy(self.env.reset())
+                if self.normalize_observations:
+                    observation_0 = normalize(observation_0)
                 assert observation_0 is not None
-
-                # Perform random steps at beginning of episode and do not record them into the experience.
-                # This slightly changes the start position between games.
-                if nb_max_start_steps != 0:
-                    observation_0 = self._perform_random_steps(
-                        nb_max_start_steps, start_step_policy, self.env,
-                        observation_0, callbacks)
 
             else:
                 # We are in the middle of an episode
@@ -243,6 +245,8 @@ class RLAgent(Agent):
                 self.observation_1, r, self.done, info = self.env.step(
                     self.action)
                 # observation_1 = deepcopy(observation_1)
+                if self.normalize_observations:
+                    self.observation_1 = normalize(self.observation_1)
 
                 for key, value in info.items():
                     if not np.isreal(value):
@@ -259,7 +263,8 @@ class RLAgent(Agent):
                     break
 
             # Scale the reward
-            self.reward = self.reward * reward_scaling
+            if self.reward_scaling != 1:
+                self.reward = self.reward * self.reward_scaling
             self.episode_reward += self.reward
 
             # End of the step
@@ -308,27 +313,6 @@ class RLAgent(Agent):
         self.hooks.run_end()
 
         return (history)
-
-    def _perform_random_steps(self, nb_max_start_steps, start_step_policy, env,
-                              observation, callbacks):
-        nb_random_start_steps = np.random.randint(nb_max_start_steps)
-        for _ in range(nb_random_start_steps):
-            if start_step_policy is None:
-                action = env.action_space.sample()
-            else:
-                action = start_step_policy(observation)
-            callbacks.on_action_begin(action)
-            observation, reward, done, info = self.env.step(action)
-            observation = deepcopy(observation)
-            callbacks.on_action_end(action)
-
-            if done:
-                warnings.warn(
-                    'self.env ended before {} random steps could be performed at the start. You should probably lower the `nb_max_start_steps` parameter.'.
-                    format(nb_random_start_steps))
-                observation = deepcopy(self.env.reset())
-                break
-        return (observation)
 
     def train_offline(self,
                       steps=1,

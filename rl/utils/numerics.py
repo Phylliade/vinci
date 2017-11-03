@@ -30,3 +30,12 @@ def huber_loss(y_true, y_pred, clip_value):
     linear_loss = clip_value * (tf.abs(x) - .5 * clip_value)
 
     return tf.where(condition, squared_loss, linear_loss)  # condition, true, false
+
+
+def normalize(vector):
+    norm = np.linalg.norm(vector)
+    if norm != 0:
+        vector_normalized = vector / norm
+    else:
+        vector_normalized = vector
+    return vector_normalized
