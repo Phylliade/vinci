@@ -60,6 +60,7 @@ class DDPGAgent(RLAgent):
             critic_learning_rate=1e-4,
             target_critic_update=0.01,
             target_actor_update=0.01,
+            critic_regularization=0.01,
             **kwargs):
 
         if custom_model_objects is None:
@@ -94,6 +95,7 @@ class DDPGAgent(RLAgent):
         self.warmup_critic_steps = warmup_critic_steps
         self.critic_learning_rate = critic_learning_rate
         self.actor_learning_rate = actor_learning_rate
+        self.critic_regularization = critic_regularization
         (self.target_critic_update, self.target_critic_hard_updates) = process_hard_update_variable(
             target_critic_update)
         (self.target_actor_update, self.target_actor_hard_updates) = process_hard_update_variable(
@@ -273,6 +275,20 @@ class DDPGAgent(RLAgent):
                 self.critic([
                     self.variables["state"], self.variables["action"]
                 ]), self.critic_target, self.gradient_clip))
+
+        # L2 regularization on the critic loss
+        critic_norms = [
+            tf.norm(weight) for weight in self.critic.trainable_weights
+        ]
+        critic_norms_l2 = [
+            tf.nn.l2_loss(weight) for weight in self.critic.trainable_weights
+        ]
+        self.variables["critic/norm"] = tf.reduce_sum(critic_norms)
+        self.variables["critic/l2_norm"] = tf.reduce_sum(critic_norms_l2)
+        if self.critic_regularization != 0:
+            self.variables["critic/loss"] += self.critic_regularization * self.variables["critic/l2_norm"]
+
+        #  Compute gradients
         critic_gradient_vars = critic_optimizer.compute_gradients(
             self.variables["critic/loss"],
             var_list=self.critic.trainable_weights)
@@ -292,13 +308,9 @@ class DDPGAgent(RLAgent):
             critic_gradient_vars)
 
         # Additional critic metrics
-        critic_norms = [
-            tf.norm(weight) for weight in self.critic.trainable_weights
-        ]
         for var, norm in zip(self.critic.trainable_weights, critic_norms):
             var_name = "critic/{}/norm".format(var.name)
             self.variables[var_name] = norm
-        self.variables["critic/norm"] = tf.reduce_sum(critic_norms)
 
         # Additional target critic metrics
         target_critic_norms = [
