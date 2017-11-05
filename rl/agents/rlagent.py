@@ -5,7 +5,10 @@ from copy import deepcopy
 import numpy as np
 from keras.callbacks import History
 
-from rl.callbacks import TestLogger, TrainEpisodeLogger, TrainIntervalLogger, Visualizer, CallbackList
+from rl.logger.callbacks import Visualizer, CallbackList
+from rl.logger.testlogger import TestLogger
+from rl.logger.trainepisodelogger import TrainEpisodeLogger
+from rl.logger.trainintervallogger import TrainIntervalLogger
 from rl.utils.printer import print_status
 from rl.runtime.agent import Agent
 from rl.utils.numerics import normalize
