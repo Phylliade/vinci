@@ -57,7 +57,7 @@ class TrainIntervalLogger(Callback):
                         formatted_infos))
                 print('')
             self.reset()
-            print('Interval {} ({} steps performed)'.format(self.step // self.interval, self.step))
+            #print('Interval {} ({} steps performed)'.format(self.step // self.interval, self.step))
 
     def on_step_end(self, step, logs):
         if self.info_names is None:

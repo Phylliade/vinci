@@ -79,6 +79,8 @@ class DDPGAgent(RLAgent):
 
         super(DDPGAgent, self).__init__(name="ddpg", **kwargs)
 
+        print("delta-clip :", critic_gradient_clip)
+
         # Get placeholders
         self.variables["state"] = self.env.state
         self.variables["action"] = self.env.action
