@@ -20,7 +20,7 @@ class TrainIntervalLogger(Callback):
     def on_train_begin(self, logs):
         self.train_start = timeit.default_timer()
         self.metrics_names = self.model.metrics_names
-        print('Training for {} steps ...'.format(self.logs['steps']))
+        print('Training for {} steps ...'.format(self.interval))
 
     def on_train_end(self, logs):
         duration = timeit.default_timer() - self.train_start
