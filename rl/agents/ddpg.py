@@ -269,30 +269,19 @@ class DDPGAgent(RLAgent):
         self.critic.compile(optimizer='sgd', loss='mse')
 
         # Compile the critic optimizer
-        critic_optimizer = tf.train.AdamOptimizer(
-            learning_rate=self.critic_learning_rate)
+        critic_optimizer = tf.train.AdamOptimizer(learning_rate=self.critic_learning_rate)
         # NOT to be mistaken with the target_critic!
         self.critic_target = tf.placeholder(dtype=tf.float32, shape=(None, 1))
         # Clip the critic gradient using the huber loss
-        self.variables["critic/loss"] = K.mean(
-            huber_loss(
-                self.critic(
-                    [self.variables["state"], self.variables["action"]]),
-                self.critic_target, self.critic_gradient_clip))
+        self.variables["critic/loss"] = K.mean(huber_loss(self.critic([self.variables["state"], self.variables["action"]]),self.critic_target, self.critic_gradient_clip))
 
         # L2 regularization on the critic loss
-        critic_norms = [
-            tf.norm(weight) for weight in self.critic.trainable_weights
-        ]
-        critic_norms_l2 = [
-            tf.nn.l2_loss(weight) for weight in self.critic.trainable_weights
-        ]
+        critic_norms = [tf.norm(weight) for weight in self.critic.trainable_weights]
+        critic_norms_l2 = [tf.nn.l2_loss(weight) for weight in self.critic.trainable_weights]
         self.variables["critic/norm"] = tf.reduce_sum(critic_norms)
         self.variables["critic/l2_norm"] = tf.reduce_sum(critic_norms_l2)
         if self.critic_regularization != 0:
-            self.variables[
-                "critic/loss"] += self.critic_regularization * self.variables[
-                    "critic/l2_norm"]
+            self.variables["critic/loss"] += self.critic_regularization * self.variables["critic/l2_norm"]
 
         #  Compute gradients
         critic_gradient_vars = critic_optimizer.compute_gradients(
@@ -300,18 +289,21 @@ class DDPGAgent(RLAgent):
             var_list=self.critic.trainable_weights)
 
         # Compute the norm as a metric
-        critic_gradients_norms = [
-            tf.norm(grad_var[0]) for grad_var in critic_gradient_vars
-        ]
-        for var, norm in zip(self.critic.trainable_weights,
-                             critic_gradients_norms):
+        critic_gradients_norms = [tf.norm(grad_var[0]) for grad_var in critic_gradient_vars]
+        for var, norm in zip(self.critic.trainable_weights, critic_gradients_norms):
             var_name = "critic/{}/gradient_norm".format(var.name)
             self.variables[var_name] = norm
-        self.variables["critic/gradient_norm"] = tf.reduce_sum(
-            critic_gradients_norms)
+        self.variables["critic/gradient_norm"] = tf.reduce_sum(critic_gradients_norms)
 
-        self.critic_train_op = critic_optimizer.apply_gradients(
-            critic_gradient_vars)
+        # Additional global critic metrics
+        self.variables["critic/distance_to_target_pre"] = tf.reduce_mean(self.critic([self.variables["state"], self.variables["action"]]) - self.target_critic([self.variables["state"], self.variables["action"]]))
+        self.variables["critic/mean_val_pre"] = tf.reduce_mean(self.critic([self.variables["state"], self.variables["action"]]))
+        
+        self.critic_train_op = critic_optimizer.apply_gradients(critic_gradient_vars)
+
+        # Additional global critic metrics
+        self.variables["critic/distance_to_target_post"] = tf.reduce_mean(self.critic([self.variables["state"], self.variables["action"]]) - self.target_critic([self.variables["state"], self.variables["action"]]))
+        self.variables["critic/mean_val_post"] = tf.reduce_mean(self.critic([self.variables["state"], self.variables["action"]]))
 
         # Additional critic metrics
         for var, norm in zip(self.critic.trainable_weights, critic_norms):
@@ -319,22 +311,16 @@ class DDPGAgent(RLAgent):
             self.variables[var_name] = norm
 
         # Additional target critic metrics
-        target_critic_norms = [
-            tf.norm(weight) for weight in self.target_critic.trainable_weights
-        ]
-        for var, norm in zip(self.target_critic.trainable_weights,
-                             target_critic_norms):
+        target_critic_norms = [tf.norm(weight) for weight in self.target_critic.trainable_weights]
+        for var, norm in zip(self.target_critic.trainable_weights, target_critic_norms):
             var_name = "target_critic/{}/norm".format(var.name)
             self.variables[var_name] = norm
-        self.variables["target_critic/norm"] = tf.reduce_sum(
-            target_critic_norms)
+        self.variables["target_critic/norm"] = tf.reduce_sum(target_critic_norms)
 
         # Target critic optimizer
         if not self.target_critic_hard_updates:
             # Include soft target model updates.
-            self.target_critic_train_op = get_soft_target_model_ops(
-                self.target_critic.weights, self.critic.weights,
-                self.target_critic_update)
+            self.target_critic_train_op = get_soft_target_model_ops(self.target_critic.weights, self.critic.weights, self.target_critic_update)
 
     def load_weights(self, filepath):
         filename, extension = os.path.splitext(filepath)
@@ -358,11 +344,11 @@ class DDPGAgent(RLAgent):
         self.critic.save(name + "_critic.h5")
 
     def hard_update_target_critic(self):
-        print("Hard update of the target critic")
+        #print("Hard update of the target critic")
         self.target_critic.set_weights(self.critic.get_weights())
 
     def hard_update_target_actor(self):
-        print("Hard update of the target actor")
+        #print("Hard update of the target actor")
         self.target_actor.set_weights(self.actor.get_weights())
 
     def reset_states(self):

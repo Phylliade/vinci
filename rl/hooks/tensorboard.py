@@ -16,10 +16,5 @@ class TensorboardHook(Hook):
 
     def episode_end(self):
         # Episode summaries
-        episode_summary = tf.Summary(value=[
-            tf.Summary.Value(
-                tag="episode_reward",
-                simple_value=self.agent.episode_reward),
-        ])
-        self.summary_writer.add_summary(episode_summary,
-                                        self.agent.episode)
+        episode_summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=self.agent.episode_reward),])
+        self.summary_writer.add_summary(episode_summary, self.agent.episode)
