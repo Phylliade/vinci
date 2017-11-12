@@ -29,6 +29,7 @@ class RLAgent(Agent):
         super(RLAgent, self).__init__(**kwargs)
         self.normalize_observations = normalize_observations
         self.reward_scaling = reward_scaling
+        self.abort = False
 
         # Collected metrics
         self.metrics = {}
@@ -113,8 +114,10 @@ class RLAgent(Agent):
             elif verbosity > 1:
                 callbacks += [TrainEpisodeLogger()]
         else:
-            if verbosity >= 1:
+            if verbosity == 1:
                 callbacks += [TestLogger()]
+            elif verbosity > 1:
+                callbacks += [TrainEpisodeLogger()]
         callbacks = [] if not callbacks else callbacks[:]
         if render:
             callbacks += [Visualizer()]
@@ -173,7 +176,6 @@ class RLAgent(Agent):
         self.run_number += 1
         self.run_done = False
         self.done = True
-        self.abort = False
         did_abort = False
         # Define these for clarification, not mandatory:
         # Where observation: Observation before the step
