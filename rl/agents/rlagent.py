@@ -18,7 +18,6 @@ from rl.utils.numerics import normalize
 STEPS_TERMINATION = 1
 EPISODES_TERMINATION = 2
 
-
 class RLAgent(Agent):
     """Generic agent class"""
 
@@ -44,68 +43,24 @@ class RLAgent(Agent):
         """Compile an agent: Create the internal variables and populate the variables objects."""
         raise NotImplementedError()
 
-    def _run(self,
-             steps=None,
-             episodes=None,
-             train=True,
-             render=False,
-             exploration=True,
-             plots=False,
-             tensorboard=False,
-             callbacks=None,
-             verbosity=2,
-             action_repetition=1,
-             nb_max_episode_steps=None,
-             log_interval=10000,
-             **kwargs):
-        """
-        Run steps until termination.
-        This method shouldn't be called directly, but instead called in :func:`fit` and :func:`test`
-
-        Termination can be either:
-
-        * Maximal number of steps
-        * Maximal number of episodes
-
-        :param steps: Number of steps before termination.
-        :param episodes: Number of episodes before termination.
-        :param bool training: Whether to train or test the agent. Not available for the :func:`fit` and :func:`test` methods.
-        :param int action_repetition: Number of times the action is repeated for each step.
-        :param callbacks:
-        :param int verbosity: 0 for no logging, 1 for interval logging (compare `log_interval`), 2 for episode logging
-        :param bool render: Render the self.environment in realtime. This slows down by a big factor (up to 100) the function.
-        :param log_interval:
-        :param reward_scaling:
-        :param plots: Plot metrics during training.
-        :param tensorboard: Export metrics to tensorboard.
-        """
+    def check_run_params(self, action_repetition, max_steps, episodes):
         if not self.compiled:
-            raise RuntimeError(
-                'Your tried to fit your agent but it hasn\'t been compiled yet. Please call `compile()` before `train()`.'
-            )
+            raise RuntimeError('Your tried to fit your agent but it hasn\'t been compiled yet. Please call `compile()` before `train()`.')
         if action_repetition < 1:
-            raise ValueError('action_repetition must be >= 1, is {}'.format(
-                action_repetition))
+            raise ValueError('action_repetition must be >= 1, is {}'.format(action_repetition))
 
         # Process the different cases when either steps or episodes are specified
-        if (steps is None and episodes is None):
-            raise (ValueError(
-                "No duration specified: Please specify one of steps or episodes"
-            ))
-        elif (steps is not None and episodes is None):
+        if (max_steps is None and episodes is None):
+            raise (ValueError("No duration specified: Please specify one of max_steps or episodes"))
+        elif (max_steps is not None and episodes is None):
             termination_criterion = STEPS_TERMINATION
-        elif (steps is None and episodes is not None):
+        elif (max_steps is None and episodes is not None):
             termination_criterion = EPISODES_TERMINATION
-        elif (steps is not None and episodes is not None):
-            print(steps, episodes)
-            raise (ValueError(
-                "Please specify one (and only one) of steps or episodes"))
+        elif (max_steps is not None and episodes is not None):
+            raise (ValueError('Please specify only one of max_steps or episodes, instead of {} and {}'.format(max_steps, episodes)))
+        return termination_criterion
 
-        self.training = train
-        # We explore only if the flag is selected and we are in train mode
-        self.exploration = (train and exploration)
-
-        # Initialize callbacks
+    def init_callbacks(self, callbacks, verbosity, max_steps, episodes, log_interval, render, termination_criterion):
         if callbacks is None:
             callbacks = []
         if self.training:
@@ -131,7 +86,7 @@ class RLAgent(Agent):
         callbacks._set_env(self.env)
         if termination_criterion == STEPS_TERMINATION:
             params = {
-                'steps': steps,
+                'steps': max_steps,
             }
         elif termination_criterion == EPISODES_TERMINATION:
             params = {
@@ -142,7 +97,149 @@ class RLAgent(Agent):
             callbacks.set_params(params)
         else:
             callbacks._set_params(params)
+        return callbacks, history
 
+
+    def take_step(self, callbacks, action_repetition):
+        # action -- (step) --> (reward, state_1, terminal)
+        # Apply the action
+        # With repetition, if necessary
+        self.step_reward = 0.
+        accumulated_info = {}
+
+        print("obs", self.observation_1)
+        print("action", self.action)
+
+        for _ in range(action_repetition):
+            callbacks.on_action_begin(self.action)
+            self.observation_1, reward, self.done, info = self.env.step(self.action)
+            if self.normalize_observations:
+                self.observation_1 = normalize(self.observation_1)
+
+            for key, value in info.items():
+                if not np.isreal(value):
+                    continue
+                if key not in accumulated_info:
+                    accumulated_info[key] = np.zeros_like(value)
+                accumulated_info[key] += value
+
+            callbacks.on_action_end(self.action)
+
+            self.step_reward += reward
+
+            print("reward", self.step_reward)
+
+            # Set episode as finished if the self.environment has terminated
+            if self.done:
+                break
+
+            # Scale the reward
+        self.episode_reward += self.step_reward * self.reward_scaling
+        return accumulated_info
+
+    def global_init(self):
+        # Setup
+        self.termination = False
+        self.done = False
+        # Define these for clarification, not mandatory:
+        # Where observation: Observation before the step
+        # observation_1: Observation after the step
+        self.observation = None
+        self.observation_1 = None
+        self.action = None
+        self.episode_step = 0
+        self.step_summaries = None
+        self.step_summaries_post = None
+        self.hooks.run_init()
+
+    def init_new_episode(self):
+        self.episode += 1
+        if self.training:
+            self.training_episode += 1
+        self.episode_reward = 0.
+        self.episode_step = 0
+
+    def init_observation(self):
+        # Obtain the initial observation by resetting the self.environment.
+        self.reset_states()
+        self.observation = deepcopy(self.env.reset())
+        if self.normalize_observations:
+            self.observation = normalize(self.observation)
+        assert self.observation is not None
+
+    def incr_step_counters(self):
+        self.step += 1
+        self.episode_step += 1
+        if self.training:
+            self.training_step += 1
+
+    def call_step_end(self, callbacks, accumulated_info):
+        # End of step Callbacks
+        step_logs = {
+            'action': self.action,
+            'observation': self.observation_1,
+            'reward': self.step_reward,
+            # For legacy callbacks support
+            'metrics': [],
+            'episode': self.episode,
+            'info': accumulated_info,
+        }
+        callbacks.on_step_end(self.episode_step, step_logs)
+
+    def call_episode_end(self, callbacks):
+        # Collect statistics
+        episode_logs = {
+            'episode_reward': np.float_(self.episode_reward),
+            'nb_episode_steps': np.float_(self.episode_step),
+            'steps': np.float_(self.step),
+        }
+        callbacks.on_episode_end(self.episode, logs=episode_logs)
+        self.hooks.episode_end()
+
+    def _run(self,
+             max_steps=None,
+             episodes=None,
+             train=True,
+             render=False,
+             exploration=True,
+             plots=False,
+             tensorboard=False,
+             callbacks=None,
+             verbosity=2,
+             action_repetition=1,
+             nb_max_episode_steps=None,
+             log_interval=10000,
+             **kwargs):
+        """
+        Run steps until termination.
+        This method shouldn't be called directly, but instead called in :func:`fit` and :func:`test`
+
+        Termination can be either:
+
+        * Maximal number of steps
+        * Maximal number of episodes
+
+        :param max_steps: Number of steps before termination.
+        :param episodes: Number of episodes before termination.
+        :param bool training: Whether to train or test the agent. Not available for the :func:`fit` and :func:`test` methods.
+        :param int action_repetition: Number of times the action is repeated for each step.
+        :param callbacks:
+        :param int verbosity: 0 for no logging, 1 for interval logging (compare `log_interval`), 2 for episode logging
+        :param bool render: Render the self.environment in realtime. This slows down by a big factor (up to 100) the function.
+        :param log_interval:
+        :param reward_scaling:
+        :param plots: Plot metrics during training.
+        :param tensorboard: Export metrics to tensorboard.
+        """
+        termination_criterion = self.check_run_params(action_repetition, max_steps, episodes)
+
+        self.training = train
+        # We explore only if the flag is selected and we are in train mode
+        self.exploration = (train and exploration)
+
+        # Initialize callbacks
+        callbacks, history = self.init_callbacks(callbacks, verbosity, max_steps, episodes, log_interval, render, termination_criterion)
+ 
         # Add run hooks
         if tensorboard:
             from rl.hooks.tensorboard import TensorboardHook
@@ -153,17 +250,9 @@ class RLAgent(Agent):
             self.hooks.append(TrajectoryHook(agent_id=self.id))
 
         # Define the termination criterion
-        # Step and episode at which we satrt the function
+        # Step and episode at which we start the function
         start_step = self.step
         start_episode = self.episode
-        if termination_criterion == STEPS_TERMINATION:
-
-            def termination():
-                return ((self.step - start_step >= steps) or self.abort)
-        elif termination_criterion == EPISODES_TERMINATION:
-
-            def termination():
-                return (self.episode - start_episode >= episodes or self.done or self.abort)
 
         if self.training:
             self._on_train_begin()
@@ -172,159 +261,91 @@ class RLAgent(Agent):
 
         callbacks.on_train_begin()
 
-        # Setup
-        self.run_number += 1
-        self.run_done = False
-        self.done = True
-        did_abort = False
-        # Define these for clarification, not mandatory:
-        # Where observation: Observation before the step
-        # observation_1: Observation after the step
-        self.observation = None
-        self.observation_1 = None
-        self.action = None
-        self.step_summaries = None
-        self.step_summaries_post = None
+        # Init episode
+        self.global_init()
+        self.init_new_episode()
+        callbacks.on_episode_begin(self.episode)
+        self.init_observation()
 
-        # Run_init hooks
-        self.hooks.run_init()
 
         # Run steps (and episodes) until the termination criterion is met
-        while not (self.run_done):
-
-            # Init episode
-            # If we are at the beginning of a new episode, execute a startup sequence
-            if self.done:
-                self.episode += 1
-                if self.training:
-                    self.training_episode += 1
-                self.episode_reward = 0.
-                self.episode_step = 0
-                callbacks.on_episode_begin(self.episode)
-
-                # Obtain the initial observation by resetting the self.environment.
-                self.reset_states()
-                observation_0 = deepcopy(self.env.reset())
-                if self.normalize_observations:
-                    observation_0 = normalize(observation_0)
-                assert observation_0 is not None
-
+        while not (self.termination):
+            if termination_criterion == STEPS_TERMINATION:
+                self.termination = (self.step - start_step > max_steps)
+            elif termination_criterion == EPISODES_TERMINATION:
+                self.termination = (self.episode - start_episode > episodes)
             else:
-                # We are in the middle of an episode
-                # Update the observation
-                observation_0 = self.observation_1
-                # Increment the episode step
-
-            # FIXME: Use only one of the two variables
-            self.observation = observation_0
+                print("termination criterion undefined")
 
             # Increment the current step in both cases
-            self.step += 1
-            if self.training:
-                self.training_step += 1
-            self.episode_step += 1
-            self.reward = 0.
+            self.incr_step_counters()
+
             self.step_summaries = []
             self.step_summaries_post = []
-            accumulated_info = {}
 
             # Run a single step.
             callbacks.on_step_begin(self.episode_step)
+
             # This is were all of the work happens. We first perceive and compute the action
             # (forward step) and then use the reward to improve (backward step).
 
-            # state_0 -- (foward) --> action
+            # state_0 -- (forward) --> action
+            print("obs pre : ", self.observation)
             self.action = self.forward(self.observation)
+            print("action pre : ", self.action)
 
-            # action -- (step) --> (reward, state_1, terminal)
-            # Apply the action
-            # With repetition, if necesarry
-            for _ in range(action_repetition):
-                callbacks.on_action_begin(self.action)
-                self.observation_1, r, self.done, info = self.env.step(
-                    self.action)
-                # observation_1 = deepcopy(observation_1)
-                if self.normalize_observations:
-                    self.observation_1 = normalize(self.observation_1)
-
-                for key, value in info.items():
-                    if not np.isreal(value):
-                        continue
-                    if key not in accumulated_info:
-                        accumulated_info[key] = np.zeros_like(value)
-                    accumulated_info[key] += value
-                callbacks.on_action_end(self.action)
-
-                self.reward += r
-
-                # Set episode as finished if the self.environment has terminated
-                if self.done:
-                    break
-
-            # Scale the reward
-            if self.reward_scaling != 1:
-                self.reward = self.reward * self.reward_scaling
-            self.episode_reward += self.reward
+            accumulated_info = self.take_step(callbacks, action_repetition)
 
             # End of the step
             # Stop episode if reached the step limit
             if nb_max_episode_steps and self.episode_step >= nb_max_episode_steps:
-                # Force a terminal state.
                 self.done = True
 
             # Post step: training, callbacks and hooks
             # Train the algorithm
             self.backward()
 
-            # step_end Hooks
             self.hooks()
 
-            # Callbacks
-            # Collect statistics
-            step_logs = {
-                'action': self.action,
-                'observation': self.observation_1,
-                'reward': self.reward,
-                # For legacy callbacks upport
-                'metrics': [],
-                'episode': self.episode,
-                'info': accumulated_info,
-            }
-            callbacks.on_step_end(self.episode_step, step_logs)
-
-            # Episodic callbacks
-            if self.done:
-                # Collect statistics
-                episode_logs = {
-                    'episode_reward': np.float_(self.episode_reward),
-                    'nb_episode_steps': np.float_(self.episode_step),
-                    'steps': np.float_(self.step),
-                }
-                callbacks.on_episode_end(self.episode, logs=episode_logs)
-                self.hooks.episode_end()
+            # step_end Hooks
+            self.call_step_end(callbacks, accumulated_info)
 
             # Stop run if termination criterion met
-            if termination():
-                self.run_done = True
+            if self.abort or self.done:
+                #print("episode end step : ", self.step)
+                # End of episode callbacks
+                self.call_episode_end(callbacks)
 
-        callbacks.on_train_end(logs={'did_abort': did_abort})
+            self.termination = self.termination or self.abort
+
+            # If we are at the beginning of a new episode, execute a startup sequence
+            if self.done:
+                self.init_new_episode()
+                callbacks.on_episode_begin(self.episode)
+                self.init_observation()
+            else:
+                # We are in the middle of an episode
+                # Update the observation
+                self.observation = self.observation_1
+
+
+        callbacks.on_train_end(logs={'did_abort': self.abort})
         self._on_train_end()
         self.hooks.run_end()
 
         return (history)
 
     def train_offline(self,
-                      steps=1,
+                      max_steps=1,
                       episode_length=200,
                       plots=False,
                       tensorboard=False,
                       verbosity=True,
                       **kwargs):
-        """Train the networks in offline mode"""
+        """Train the networks in offline mode, from the replay buffer, that is without calling upon the environment"""
 
         self.training = True
         self.done = True
-        self.run_number += 1
 
         # Add run hooks
         if tensorboard:
@@ -338,20 +359,14 @@ class RLAgent(Agent):
         self.hooks.run_init()
 
         # We could use a termination criterion, based on step instead of epoch, as in  _run
-        for epoch in range(1, steps + 1):
+        for epoch in range(1, max_steps+1):
             if self.done:
-                self.episode += 1
-                if self.training:
-                    self.training_episode += 1
-                self.episode_reward = 0.
-                self.episode_step = 0
+                self.init_new_episode()
 
             # Initialize the step
             self.done = False
-            self.step += 1
-            if self.training:
-                self.training_step += 1
-            self.episode_step += 1
+            self.incr_step_counters()
+
             self.step_summaries = []
             self.step_summaries_post = []
 
@@ -362,9 +377,7 @@ class RLAgent(Agent):
             # Post step
             # Train the networks
             if verbosity:
-                print_status(
-                    "Training epoch: {}/{} ".format(epoch, steps),
-                    terminal=(epoch == steps))
+                print_status("Training epoch: {}/{} ".format(epoch, max_steps),terminal=(epoch == max_steps))
             self.backward_offline(**kwargs)
 
             # Hooks
@@ -372,6 +385,9 @@ class RLAgent(Agent):
 
             if self.done:
                 self.hooks.episode_end()
+
+            if self.abort:
+                break
 
         # End of the run
         self.hooks.run_end()

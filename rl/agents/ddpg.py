@@ -367,12 +367,8 @@ class DDPGAgent(RLAgent):
         batch_state = [observation]
         # We get a batch of 1 action
         # action = self.actor.predict_on_batch(batch_state)[0]
-        action = self.session.run(
-            self.actor(self.variables["state"]),
-            feed_dict={
-                self.variables["state"]: batch_state,
-                K.learning_phase(): 0
-            })[0]
+        action = self.session.run(self.actor(self.variables["state"]),
+            feed_dict={self.variables["state"]: batch_state, K.learning_phase(): 0})[0]
         assert action.shape == (self.nb_actions, )
 
         # Apply noise, if a random process is set.
