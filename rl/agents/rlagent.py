@@ -107,8 +107,8 @@ class RLAgent(Agent):
         self.step_reward = 0.
         accumulated_info = {}
 
-        print("obs", self.observation_1)
-        print("action", self.action)
+        #print("obs", self.observation_1)
+        #print("action", self.action)
 
         for _ in range(action_repetition):
             callbacks.on_action_begin(self.action)
@@ -127,7 +127,7 @@ class RLAgent(Agent):
 
             self.step_reward += reward
 
-            print("reward", self.step_reward)
+            #print("reward", self.step_reward)
 
             # Set episode as finished if the self.environment has terminated
             if self.done:
@@ -290,9 +290,9 @@ class RLAgent(Agent):
             # (forward step) and then use the reward to improve (backward step).
 
             # state_0 -- (forward) --> action
-            print("obs pre : ", self.observation)
+            #print("obs pre : ", self.observation)
             self.action = self.forward(self.observation)
-            print("action pre : ", self.action)
+            #print("action pre : ", self.action)
 
             accumulated_info = self.take_step(callbacks, action_repetition)
 

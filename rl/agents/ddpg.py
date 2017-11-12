@@ -97,10 +97,8 @@ class DDPGAgent(RLAgent):
         self.critic_learning_rate = critic_learning_rate
         self.actor_learning_rate = actor_learning_rate
         self.critic_regularization = critic_regularization
-        (self.target_critic_update, self.target_critic_hard_updates
-         ) = process_hard_update_variable(target_critic_update)
-        (self.target_actor_update, self.target_actor_hard_updates
-         ) = process_hard_update_variable(target_actor_update)
+        (self.target_critic_update, self.target_critic_hard_updates) = process_hard_update_variable(target_critic_update)
+        (self.target_actor_update, self.target_actor_hard_updates)   = process_hard_update_variable(target_actor_update)
         self.batch_size = batch_size
         self.train_interval = train_interval
         self.memory_interval = memory_interval
@@ -393,9 +391,8 @@ class DDPGAgent(RLAgent):
 
         # Store most recent experience in memory.
         if self.training_step % self.memory_interval == 0:
-            self.memory.append(
-                Experience(self.observation, self.action,
-                           self.reward, self.observation_1, self.done))
+            exp = Experience(self.observation, self.action, self.step_reward, self.observation_1, self.done)
+            self.memory.append(exp)
 
         # Train the networks
         if self.training_step % self.train_interval == 0:
@@ -488,14 +485,12 @@ class DDPGAgent(RLAgent):
 
             # Train networks
             if train_critic:
-                summaries_critic, summaries_post_critic = self.train_critic(
-                    batch)
+                summaries_critic, summaries_post_critic = self.train_critic(batch)
                 summaries += summaries_critic
                 summaries_post += summaries_post_critic
 
             if train_actor:
-                summaries_actor, summaries_post_actor = self.train_actor(
-                    batch, can_reset_actor=can_reset_actor)
+                summaries_actor, summaries_post_actor = self.train_actor(batch, can_reset_actor=can_reset_actor)
                 summaries += summaries_actor
                 summaries_post += summaries_post_actor
 
@@ -519,12 +514,8 @@ class DDPGAgent(RLAgent):
         if USE_KERAS_INFERENCE:
             target_actions = self.target_actor.predict_on_batch(batch.state1)
         else:
-            target_actions = self.session.run(
-                self.target_actor(self.variables["state"]),
-                feed_dict={
-                    self.variables["state"]: batch.state1,
-                    K.learning_phase(): 0
-                })
+            target_actions = self.session.run(self.target_actor(self.variables["state"]),
+                                              feed_dict={self.variables["state"]: batch.state1, K.learning_phase(): 0})
         assert target_actions.shape == (self.batch_size, self.nb_actions)
 
         # Get the target Q value of the next state
@@ -533,13 +524,8 @@ class DDPGAgent(RLAgent):
             target_q_values = self.target_critic.predict_on_batch(
                 [batch.state1, target_actions])
         else:
-            target_q_values = self.session.run(
-                self.target_critic(
-                    [self.variables["state"], self.variables["action"]]),
-                feed_dict={
-                    self.variables["state"]: batch.state1,
-                    self.variables["action"]: target_actions
-                })
+            target_q_values = self.session.run(self.target_critic([self.variables["state"], self.variables["action"]]),
+                feed_dict={self.variables["state"]: batch.state1, self.variables["action"]: target_actions})
 
         # Also works
         # assert target_q_values.shape == (self.batch_size, )
