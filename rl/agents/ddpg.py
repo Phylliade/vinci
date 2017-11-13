@@ -60,6 +60,7 @@ class DDPGAgent(RLAgent):
                  target_critic_update=0.01,
                  target_actor_update=0.01,
                  critic_regularization=0.01,
+                 tensorboard_collect_all=False,
                  **kwargs):
 
         if custom_model_objects is None:
@@ -80,6 +81,7 @@ class DDPGAgent(RLAgent):
         super(DDPGAgent, self).__init__(name="ddpg", **kwargs)
 
         print("delta-clip :", critic_gradient_clip)
+        self.tensorboard_collect_all = tensorboard_collect_all
 
         # Get placeholders
         self.variables["state"] = self.env.state
@@ -142,33 +144,40 @@ class DDPGAgent(RLAgent):
 
         # Collect summaries directly from variables
         for (var_name, variable) in self.variables.items():
-            self.summary_variables[var_name] = (tf.summary.scalar(
-                var_name, variable))
-        # Special selections of summary variables
-        # Critic
-        self.critic_summaries = [
-            value for (key, value) in self.summary_variables.items()
-            if (key.startswith("critic/") or key.startswith("target_critic/"))
-        ]
-        # Critic post (run after training)
-        self.critic_summaries_post = [
-            value for (key, value) in self.summary_variables.items()
-            if (key.startswith("critic_post/")
-                or key.startswith("target_critic_post/"))
-        ]
-        # Actor
-        # No need to collect the actor's loss, since we already have actor/objective
-        self.actor_summaries = [
-            value for (key, value) in self.summary_variables.items()
-            if (key.startswith("actor/") and not key == ("actor/loss")
-                or key.startswith("target_actor/"))
-        ]
-        # Actor post
-        self.actor_summaries_post = [
-            value for (key, value) in self.summary_variables.items()
-            if (key.startswith("actor_post/")
-                or key.startswith("target_actor_post/"))
-        ]
+            self.summary_variables[var_name] = (tf.summary.scalar(var_name, variable))
+
+        if (self.tensorboard_collect_all):
+            # Special selections of summary variables
+            
+            # Actor
+            # No need to collect the actor's loss, since we already have actor/objective
+            self.actor_summaries = [value for (key, value) in self.summary_variables.items()
+                                    if (key.startswith("actor/") and not key == ("actor/loss") or key.startswith("target_actor/"))
+            ]
+            # Actor post
+            self.actor_summaries_post = [value for (key, value) in self.summary_variables.items()
+                                         if (key.startswith("actor_post/") or key.startswith("target_actor_post/"))
+            ]
+
+            # Critic
+            self.critic_summaries = [value for (key, value) in self.summary_variables.items()
+                                     if (key.startswith("critic/") or key.startswith("target_critic/"))
+            ]
+            # Critic post (run after training)
+            self.critic_summaries_post = [value for (key, value) in self.summary_variables.items()
+                                          if (key.startswith("critic_post/") or key.startswith("target_critic_post/"))
+            ]
+        else:
+            # No need to collect the actor's loss, since we already have actor/objective
+            self.actor_summaries = []
+            self.actor_summaries_post = []
+            # Critic
+            self.critic_summaries = [value for (key, value) in self.summary_variables.items()
+                                     if (key.startswith("critic/grad") or key.startswith("critic/dist") or key.startswith("critic/mean") or key.startswith("critic/loss"))
+            ]
+            # Critic post (run after training)
+            self.critic_summaries_post = []
+            
 
         # Initialize the remaining variables
         # FIXME: Use directly Keras backend
@@ -181,8 +190,7 @@ class DDPGAgent(RLAgent):
         variables = tf.global_variables()
         uninitialized_variables = []
         for v in variables:
-            if not hasattr(v,
-                           '_keras_initialized') or not v._keras_initialized:
+            if not hasattr(v, '_keras_initialized') or not v._keras_initialized:
                 uninitialized_variables.append(v)
                 v._keras_initialized = True
         self.session.run(tf.variables_initializer(uninitialized_variables))
@@ -217,45 +225,32 @@ class DDPGAgent(RLAgent):
                  self.actor(self.variables["state"])]))
         self.variables["actor/objective"] = -self.variables["actor/loss"]
 
-        actor_gradient_vars = actor_optimizer.compute_gradients(
-            self.variables["actor/loss"],
-            var_list=self.actor.trainable_weights)
+        actor_gradient_vars = actor_optimizer.compute_gradients(self.variables["actor/loss"], var_list=self.actor.trainable_weights)
         # Gradient inverting
         # as described in https://arxiv.org/abs/1511.04143
         if self.invert_gradients:
-            actor_gradient_vars = [(gradient_inverter(
-                x[0], self.gradient_inverter_min, self.gradient_inverter_max),
-                                    x[1]) for x in actor_gradient_vars]
+            actor_gradient_vars = [(gradient_inverter(x[0], self.gradient_inverter_min, self.gradient_inverter_max), x[1]) for x in actor_gradient_vars]
 
         # Compute the norm of each weights's gradient
-        actor_gradients_norms = [
-            tf.norm(grad_var[0]) for grad_var in actor_gradient_vars
-        ]
-        for var, norm in zip(self.actor.trainable_weights,
-                             actor_gradients_norms):
+        actor_gradients_norms = [tf.norm(grad_var[0]) for grad_var in actor_gradient_vars]
+        for var, norm in zip(self.actor.trainable_weights, actor_gradients_norms):
             var_name = "actor/{}/gradient_norm".format(var.name)
             self.variables[var_name] = (norm)
         # As long as the sum
-        self.variables["actor/gradient_norm"] = tf.reduce_sum(
-            actor_gradients_norms)
+        self.variables["actor/gradient_norm"] = tf.reduce_sum(actor_gradients_norms)
 
         # The actual train op
-        self.actor_train_op = actor_optimizer.apply_gradients(
-            actor_gradient_vars)
+        self.actor_train_op = actor_optimizer.apply_gradients(actor_gradient_vars)
 
         # Additional actor metrics
-        actor_norms = [
-            tf.norm(weight) for weight in self.actor.trainable_weights
-        ]
+        actor_norms = [tf.norm(weight) for weight in self.actor.trainable_weights]
         for var, norm in zip(self.actor.trainable_weights, actor_norms):
             var_name = "actor/{}/norm".format(var.name)
             self.variables[var_name] = norm
         self.variables["actor/norm"] = tf.reduce_sum(actor_norms)
 
         # Additional target actor metrics
-        target_actor_norms = [
-            tf.norm(weight) for weight in self.target_actor.trainable_weights
-        ]
+        target_actor_norms = [tf.norm(weight) for weight in self.target_actor.trainable_weights]
         for var, norm in zip(self.target_critic.trainable_weights,
                              target_actor_norms):
             var_name = "target_actor/{}/norm".format(var.name)
@@ -282,9 +277,7 @@ class DDPGAgent(RLAgent):
             self.variables["critic/loss"] += self.critic_regularization * self.variables["critic/l2_norm"]
 
         #  Compute gradients
-        critic_gradient_vars = critic_optimizer.compute_gradients(
-            self.variables["critic/loss"],
-            var_list=self.critic.trainable_weights)
+        critic_gradient_vars = critic_optimizer.compute_gradients(self.variables["critic/loss"], var_list=self.critic.trainable_weights)
 
         # Compute the norm as a metric
         critic_gradients_norms = [tf.norm(grad_var[0]) for grad_var in critic_gradient_vars]
@@ -294,8 +287,8 @@ class DDPGAgent(RLAgent):
         self.variables["critic/gradient_norm"] = tf.reduce_sum(critic_gradients_norms)
 
         # Additional global critic metrics
-        self.variables["critic/distance_to_target_pre"] = tf.reduce_mean(self.critic([self.variables["state"], self.variables["action"]]) - self.target_critic([self.variables["state"], self.variables["action"]]))
-        self.variables["critic/mean_val_pre"] = tf.reduce_mean(self.critic([self.variables["state"], self.variables["action"]]))
+        self.variables["critic/distance_to_target"] = tf.reduce_mean(self.critic([self.variables["state"], self.variables["action"]]) - self.target_critic([self.variables["state"], self.variables["action"]]))
+        self.variables["critic/mean_val"] = tf.reduce_mean(self.critic([self.variables["state"], self.variables["action"]]))
         
         self.critic_train_op = critic_optimizer.apply_gradients(critic_gradient_vars)
 
@@ -542,8 +535,7 @@ class DDPGAgent(RLAgent):
         }
 
         # Collect summaries and metrics before training the critic
-        self.metrics["critic/gradient_norm"], summaries = self.session.run(
-            [self.variables["critic/gradient_norm"], self.critic_summaries], feed_dict=feed_dict)
+        self.metrics["critic/gradient_norm"], summaries = self.session.run([self.variables["critic/gradient_norm"], self.critic_summaries], feed_dict=feed_dict)
 
         # Train the critic
         for _ in range(sgd_iterations):
@@ -551,8 +543,7 @@ class DDPGAgent(RLAgent):
             self.session.run(self.critic_train_op, feed_dict=feed_dict)
 
             # Collect summaries and metrics after training the critic
-        summaries_post = self.session.run(
-            self.critic_summaries_post, feed_dict=feed_dict)
+        summaries_post = self.session.run(self.critic_summaries_post, feed_dict=feed_dict)
 
         return (summaries, summaries_post)
 
@@ -565,9 +556,7 @@ class DDPGAgent(RLAgent):
         }
 
         # Collect metrics before training the actor
-        self.metrics["actor/gradient_norm"], summaries = self.session.run(
-            [self.variables["actor/gradient_norm"], self.actor_summaries],
-            feed_dict=feed_dict)
+        self.metrics["actor/gradient_norm"], summaries = self.session.run([self.variables["actor/gradient_norm"], self.actor_summaries], feed_dict=feed_dict)
 
         # Train the actor
         for _ in range(sgd_iterations):
@@ -575,8 +564,7 @@ class DDPGAgent(RLAgent):
             self.session.run(self.actor_train_op, feed_dict=feed_dict)
 
         # Collect metrics before training the actor
-        summaries_post = self.session.run(
-            self.actor_summaries_post, feed_dict=feed_dict)
+        summaries_post = self.session.run(self.actor_summaries_post, feed_dict=feed_dict)
 
         if can_reset_actor:
             # Reset the actor if the gradient is flat

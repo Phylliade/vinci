@@ -1,4 +1,5 @@
 from rl.agents.ddpg import DDPGAgent
+import tensorflow as tf
 
 # Whether to use Keras inference engine
 USE_KERAS_INFERENCE = False
@@ -24,12 +25,8 @@ class OPDDPGAgent(DDPGAgent):
 
         # Get the target Q value of the next state
         # Q(s_{t + 1}, \pi(s_{t + 1}))
-        target_q_values = self.session.run(
-            self.target_critic([self.variables["state"], self.variables["action"]]),
-            feed_dict={
-                self.variables["state"]: batch.state1,
-                self.variables["action"]: target_actions
-            })
+        target_q_values = self.session.run(self.target_critic([self.variables["state"], self.variables["action"]]),
+                                           feed_dict={self.variables["state"]: batch.state1, self.variables["action"]: target_actions})
 
         # Also works
         # assert target_q_values.shape == (self.batch_size, )
@@ -46,12 +43,16 @@ class OPDDPGAgent(DDPGAgent):
         }
 
         # Collect summaries and metrics before training the critic
-        summaries = self.session.run(
-            self.critic_summaries, feed_dict=feed_dict)
+        summaries = self.session.run(self.critic_summaries, feed_dict=feed_dict)
+
+        self.metrics["critic/gradient_norm"], summaries = self.session.run([self.variables["critic/gradient_norm"], self.critic_summaries], feed_dict=feed_dict)
+
 
         # Train the critic
         for _ in range(sgd_iterations):
             # FIXME: The intermediate gradient values are not captured
             self.session.run(self.critic_train_op, feed_dict=feed_dict)
 
-        return (summaries)
+        summaries_post = self.session.run(self.critic_summaries_post, feed_dict=feed_dict)
+
+        return (summaries, summaries_post)

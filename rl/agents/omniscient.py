@@ -6,7 +6,8 @@ import pickle
 
 
 class OmniscientAgent(Agent):
-    def __init__(self, experiment, **kwargs):
+    def __init__(self, experiment, reward_scaling, **kwargs):
+        self.reward_scaling = reward_scaling
         if experiment is None:
             self.experiment = DefaultExperiment(use_tf=False)
         else:
@@ -26,7 +27,8 @@ class OmniscientAgent(Agent):
             action_space_high = self.env.action_space.high
         if action_space_low is None:
             action_space_low = self.env.action_space.low
-
+            
+        cpt = 0
         for epoch in range(1, steps + 1):
             print_epoch(epoch, steps)
             # Pick a random state
@@ -39,10 +41,15 @@ class OmniscientAgent(Agent):
             # Simulate from this state with a random action
             random_action = np.random.uniform(action_space_low, action_space_high, size=self.env.action_space.shape)
             observation_post, reward, done, info = self.env.step(random_action)
-            self.replay_buffer.append([observation_pre, random_action, reward, observation_post, done])
+            if (reward > 0):
+                #print (" r : ", reward*self.reward_scaling)
+                cpt += 1
+            self.replay_buffer.append([observation_pre, random_action, reward*self.reward_scaling, observation_post, done])
 
             if render:
                 self.env.render()
+                
+        print ("nb positive rewards : ", cpt)
 
     def dump_memory(self, file):
         with open(file, "wb") as fd:
