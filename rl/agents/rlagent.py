@@ -133,8 +133,9 @@ class RLAgent(Agent):
             if self.done:
                 break
 
-            # Scale the reward
-        self.episode_reward += self.step_reward * self.reward_scaling
+        # Scale the reward
+        self.step_reward = self.step_reward * self.reward_scaling
+        self.episode_reward += self.step_reward
         return accumulated_info
 
     def global_init(self):
