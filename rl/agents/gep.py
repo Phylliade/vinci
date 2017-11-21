@@ -17,7 +17,7 @@ class GEPAgent(Agent):
             self.experiment = experiment
 
         # Finish with agent initialization since Hook initialization can depend on custom GEPAgent variables
-        super(GEPAgent, self).__init__(experiment=self.experiment, **kwargs)
+        super(GEPAgent, self).__init__(env=environment.env, experiment=self.experiment, **kwargs)
 
     def _run(self,
              n_episodes,
